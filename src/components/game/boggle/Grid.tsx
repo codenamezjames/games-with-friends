@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo } from 'react';
+import { useCallback, useRef, useMemo, useEffect } from 'react';
 import { Cell } from './Cell';
 import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useGameStore } from '@/stores/useGameStore';
@@ -44,7 +44,10 @@ export function Grid({ onWordSubmit }: GridProps) {
     [isDisabled, startTrace, play]
   );
 
-  const handlePointerEnter = useCallback(
+  // Track last cell to avoid duplicate processing
+  const lastCellRef = useRef<number | null>(null);
+
+  const handleCellEnter = useCallback(
     (index: number) => {
       if (!isTracing || isDisabled) return;
 
@@ -66,6 +69,38 @@ export function Grid({ onWordSubmit }: GridProps) {
     },
     [isTracing, isDisabled, currentPath, removeLastFromPath, addToPath, play, gridSize]
   );
+
+  // Handle pointer move for touch dragging (pointerenter doesn't fire during touch drag)
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isTracing || isDisabled) return;
+
+      // Get the element under the pointer
+      const element = document.elementFromPoint(e.clientX, e.clientY);
+      if (!element) return;
+
+      // Find the cell element (might be the element itself or a parent)
+      const cellElement = element.closest('[data-index]');
+      if (!cellElement) return;
+
+      const index = parseInt(cellElement.getAttribute('data-index') || '', 10);
+      if (isNaN(index)) return;
+
+      // Only process if we've moved to a new cell
+      if (index === lastCellRef.current) return;
+      lastCellRef.current = index;
+
+      handleCellEnter(index);
+    },
+    [isTracing, isDisabled, handleCellEnter]
+  );
+
+  // Reset lastCellRef when trace ends
+  useEffect(() => {
+    if (!isTracing) {
+      lastCellRef.current = null;
+    }
+  }, [isTracing]);
 
   const handlePointerUp = useCallback(() => {
     if (!isTracing) return;
@@ -156,6 +191,7 @@ export function Grid({ onWordSubmit }: GridProps) {
           ref={gridRef}
           className="grid gap-2 touch-none relative z-[1]"
           style={{ gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))` }}
+          onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
           onPointerCancel={handlePointerUp}
@@ -169,7 +205,7 @@ export function Grid({ onWordSubmit }: GridProps) {
               selectionOrder={currentPath.indexOf(index)}
               isDisabled={isDisabled}
               onPointerDown={handlePointerDown}
-              onPointerEnter={handlePointerEnter}
+              onPointerEnter={handleCellEnter}
             />
           ))}
         </div>
