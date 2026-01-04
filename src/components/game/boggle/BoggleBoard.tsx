@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Grid } from './Grid';
-import { PlayerPanel } from './PlayerPanel';
+import { GamePlayerList } from './GamePlayerList';
 import { Feedback } from './Feedback';
 import { ResultsModal } from './ResultsModal';
 import { Countdown } from '@/components/common/Countdown';
@@ -345,14 +345,14 @@ export function BoggleBoard() {
   const seconds = timeRemaining % 60;
   const timerDisplay = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
-  // Get player data
-  const localPlayer = players[playerId || ''];
-  const opponentEntry = Object.entries(players).find(([id]) => id !== playerId);
-  const opponentId = opponentEntry?.[0];
-  const opponent = opponentEntry?.[1];
-
-  const myWords = playerId ? foundWords[playerId] || [] : [];
-  const opponentWords = opponentId ? foundWords[opponentId] || [] : [];
+  // Get player data for the list
+  const playerList = Object.entries(players).map(([id, player]) => ({
+    id,
+    name: player.name,
+    score: scores[id] || 0,
+    wordCount: wordCounts[id] || 0,
+    isLocal: id === playerId,
+  }));
 
   return (
     <div className="min-h-screen p-4 flex flex-col">
@@ -369,20 +369,12 @@ export function BoggleBoard() {
       </header>
 
       {/* Main game area */}
-      <main className="flex-1 flex flex-col lg:flex-row gap-4 max-w-6xl mx-auto w-full">
-        {/* My Panel */}
-        <div className="lg:w-64 order-2 lg:order-1">
-          <PlayerPanel
-            name={localPlayer?.name || 'You'}
-            score={playerId ? scores[playerId] || 0 : 0}
-            wordCount={playerId ? wordCounts[playerId] || 0 : 0}
-            words={myWords}
-            isLocal={true}
-          />
-        </div>
+      <main className="flex-1 flex flex-col gap-4 max-w-md mx-auto w-full">
+        {/* Player List */}
+        <GamePlayerList players={playerList} />
 
         {/* Grid */}
-        <div className="flex-1 order-1 lg:order-2 flex flex-col items-center">
+        <div className="flex flex-col items-center">
           <div className="relative w-full max-w-sm">
             {showCountdown && startTime && (
               <Countdown
@@ -393,17 +385,6 @@ export function BoggleBoard() {
             <Grid onWordSubmit={handleWordSubmit} />
             <Feedback />
           </div>
-        </div>
-
-        {/* Opponent Panel */}
-        <div className="lg:w-64 order-3">
-          <PlayerPanel
-            name={opponent?.name || 'Opponent'}
-            score={opponentId ? scores[opponentId] || 0 : 0}
-            wordCount={opponentId ? wordCounts[opponentId] || 0 : 0}
-            words={opponentWords}
-            isLocal={false}
-          />
         </div>
       </main>
 
