@@ -1,4 +1,4 @@
-export type GamePhase = 'setup' | 'countdown' | 'playing' | 'finished';
+export type GamePhase = 'setup' | 'countdown' | 'playing' | 'finished' | 'lobby';
 
 export interface PlayerResult {
   playerId: string;

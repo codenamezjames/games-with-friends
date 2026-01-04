@@ -20,7 +20,7 @@ export function BoggleBoard() {
   const gameRef = useRef<BoggleGame | null>(null);
   const timerRef = useRef<number | null>(null);
 
-  const { playerId, isHost, players, gameSettings } = useRoomStore();
+  const { playerId, isHost, players, gameSettings, roomCode } = useRoomStore();
   const {
     phase,
     startTime,
@@ -319,7 +319,7 @@ export function BoggleBoard() {
     }
   }, [isHost, players, gameSettings, resetGame, resetLocalGame, updateGameState]);
 
-  // Handle back to lobby
+  // Handle back to lobby - return to waiting room with same room code
   const handleBackToLobby = useCallback(async () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -328,8 +328,19 @@ export function BoggleBoard() {
     gameRef.current = null;
     resetGame();
     resetLocalGame();
-    navigate('/');
-  }, [resetGame, resetLocalGame, navigate]);
+
+    // If host, signal to Firebase that we're going back to lobby
+    if (isHost && roomCode) {
+      await updateGameStateFields({ phase: 'lobby' });
+    }
+
+    // Navigate back to waiting room
+    if (roomCode) {
+      navigate(`/lobby/room/${roomCode}`);
+    } else {
+      navigate('/');
+    }
+  }, [resetGame, resetLocalGame, navigate, isHost, roomCode, updateGameStateFields]);
 
   // Cleanup on unmount
   useEffect(() => {

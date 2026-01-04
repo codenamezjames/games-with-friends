@@ -3,6 +3,7 @@ import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { HomePage } from '@/pages/HomePage';
 import { LobbyPage } from '@/pages/LobbyPage';
 import { GamePage } from '@/pages/GamePage';
+import { SoloGamePage } from '@/pages/SoloGamePage';
 
 function AppContent() {
   const { loading, error } = useFirebaseAuth();
@@ -31,6 +32,7 @@ function AppContent() {
       <Route path="/lobby" element={<LobbyPage />} />
       <Route path="/lobby/room/:roomCode" element={<LobbyPage />} />
       <Route path="/game/:roomCode" element={<GamePage />} />
+      <Route path="/solo" element={<SoloGamePage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

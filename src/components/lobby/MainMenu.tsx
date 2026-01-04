@@ -133,7 +133,7 @@ export function MainMenu() {
         <Button
           variant="link"
           className="w-full mt-6"
-          onClick={() => window.location.reload()}
+          onClick={() => navigate('/solo')}
         >
           Play Solo
         </Button>

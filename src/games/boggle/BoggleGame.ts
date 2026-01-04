@@ -5,7 +5,7 @@ import {
   generateGrid,
   getWordFromPath,
 } from './utils';
-import type { ProcessResult, GameResults, SerializableGameState } from '@/types';
+import type { ProcessResult, GameResults, SerializableGameState, GamePhase } from '@/types';
 
 export interface BogglePlayer {
   id: string;
@@ -32,7 +32,7 @@ export class BoggleGame {
   players: Map<string, BogglePlayer> = new Map();
   timeRemaining: number = BoggleGame.DEFAULT_DURATION;
   duration: number = BoggleGame.DEFAULT_DURATION;
-  phase: 'setup' | 'countdown' | 'playing' | 'finished' = 'setup';
+  phase: GamePhase = 'setup';
   startTime: number | null = null;
 
   /**
