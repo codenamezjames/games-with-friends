@@ -83,7 +83,7 @@ export function ResultsModal({
             Your Words
           </h3>
           <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-            {myResult?.words.length ? (
+            {myResult?.words?.length ? (
               myResult.words.map((word, index) => (
                 <span
                   key={index}

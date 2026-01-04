@@ -70,6 +70,14 @@ export function BoggleBoard() {
     }
   }, [isHost, phase, players, grid, gridSize, startTime, timeRemaining, foundWords, scores, wordCounts]);
 
+  // Keep game instance grid in sync with store grid
+  useEffect(() => {
+    if (gameRef.current && grid.length > 0) {
+      gameRef.current.grid = grid;
+      gameRef.current.gridSize = gridSize;
+    }
+  }, [grid, gridSize]);
+
   // Show countdown when phase changes to countdown
   useEffect(() => {
     if (phase === 'countdown' && startTime) {
@@ -179,6 +187,8 @@ export function BoggleBoard() {
             NOT_IN_DICTIONARY: 'Not a word',
             TOO_SHORT: 'Too short',
             INVALID_PATH: 'Invalid path',
+            PATH_MISMATCH: 'Path mismatch',
+            PLAYER_NOT_FOUND: 'Player error',
           };
           setFeedback({
             message: messages[result.error!] || 'Error',
