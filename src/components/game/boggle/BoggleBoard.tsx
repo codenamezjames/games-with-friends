@@ -381,9 +381,6 @@ export function BoggleBoard() {
 
       {/* Main game area */}
       <main className="flex-1 flex flex-col gap-4 max-w-md mx-auto w-full">
-        {/* Player List */}
-        <GamePlayerList players={playerList} />
-
         {/* Grid */}
         <div className="flex flex-col items-center">
           <div className="relative w-full max-w-sm">
@@ -397,6 +394,9 @@ export function BoggleBoard() {
             <Feedback />
           </div>
         </div>
+
+        {/* Player List */}
+        <GamePlayerList players={playerList} />
       </main>
 
       {/* Results Modal */}
