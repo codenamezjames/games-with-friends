@@ -9,21 +9,40 @@ export function useFirebaseAuth() {
   const { playerId, setPlayerId } = useRoomStore();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        try {
-          await signInAnonymously(auth);
-        } catch (err) {
+    let retryCount = 0;
+    const maxRetries = 3;
+    let retryTimeout: ReturnType<typeof setTimeout>;
+
+    const attemptSignIn = async () => {
+      try {
+        await signInAnonymously(auth);
+      } catch (err) {
+        if (retryCount < maxRetries) {
+          const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+          retryCount++;
+          retryTimeout = setTimeout(attemptSignIn, delay);
+        } else {
           setError(err as Error);
           setLoading(false);
         }
+      }
+    };
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        attemptSignIn();
       } else {
+        retryCount = 0;
         setPlayerId(user.uid);
         setLoading(false);
+        setError(null);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      clearTimeout(retryTimeout);
+    };
   }, [setPlayerId]);
 
   return { playerId, loading, error };
