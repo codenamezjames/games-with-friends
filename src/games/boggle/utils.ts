@@ -85,3 +85,48 @@ export function generateGrid(gridSize: number = 5): string[] {
 export function getWordFromPath(grid: string[], path: number[]): string {
   return path.map((i) => grid[i]).join('');
 }
+
+/**
+ * Prepare words for animated reveal sequence
+ * Order: Shared words first (2+ players), then unique (1 player)
+ * Within each category: shortest to longest, then alphabetically
+ */
+export function prepareWordRevealSequence(
+  foundWords: Record<string, string[]>
+): { word: string; points: number; foundByPlayerIds: string[]; isShared: boolean }[] {
+  // Build word -> playerIds map
+  const wordToPlayers = new Map<string, string[]>();
+
+  Object.entries(foundWords).forEach(([playerId, words]) => {
+    words.forEach((word) => {
+      const existing = wordToPlayers.get(word) || [];
+      existing.push(playerId);
+      wordToPlayers.set(word, existing);
+    });
+  });
+
+  // Convert to array with metadata
+  const allWords: { word: string; points: number; foundByPlayerIds: string[]; isShared: boolean }[] = [];
+
+  wordToPlayers.forEach((playerIds, word) => {
+    allWords.push({
+      word,
+      points: getWordPoints(word),
+      foundByPlayerIds: playerIds,
+      isShared: playerIds.length >= 2,
+    });
+  });
+
+  // Sort: length ascending, then alphabetically
+  const sortFn = (a: typeof allWords[0], b: typeof allWords[0]) => {
+    const lenDiff = a.word.length - b.word.length;
+    if (lenDiff !== 0) return lenDiff;
+    return a.word.localeCompare(b.word);
+  };
+
+  // Separate, sort, and concatenate
+  const shared = allWords.filter((w) => w.isShared).sort(sortFn);
+  const unique = allWords.filter((w) => !w.isShared).sort(sortFn);
+
+  return [...shared, ...unique];
+}

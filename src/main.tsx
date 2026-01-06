@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
-const VERSION = '1.4.1';
+const VERSION = '1.4.2';
 console.log(`[Word Trace] v${VERSION}`);
 
 createRoot(document.getElementById('root')!).render(

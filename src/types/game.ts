@@ -51,3 +51,10 @@ export interface GameConfig {
   maxPlayers: number;
   defaultDuration: number;
 }
+
+export interface WordRevealItem {
+  word: string;
+  points: number;
+  foundByPlayerIds: string[];
+  isShared: boolean;
+}

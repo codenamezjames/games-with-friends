@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ref, update } from 'firebase/database';
+import { db } from '@/lib/firebase';
 import { Grid } from './Grid';
 import { GamePlayerList } from './GamePlayerList';
+import { WordList } from './WordList';
+import { SpectatorBanner } from './SpectatorBanner';
+import { SpectatorWordList } from './SpectatorWordList';
 import { Feedback } from './Feedback';
 import { ResultsModal } from './ResultsModal';
+import { AnimatedResults } from './AnimatedResults';
 import { Countdown } from '@/components/common/Countdown';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
@@ -20,7 +26,7 @@ export function BoggleBoard() {
   const gameRef = useRef<BoggleGame | null>(null);
   const timerRef = useRef<number | null>(null);
 
-  const { playerId, isHost, players, gameSettings, roomCode } = useRoomStore();
+  const { playerId, isHost, isSpectator, setIsSpectator, players, gameSettings, roomCode } = useRoomStore();
   const {
     phase,
     startTime,
@@ -39,11 +45,12 @@ export function BoggleBoard() {
     resetGame,
   } = useGameStore();
   const { setFeedback, reset: resetLocalGame } = useLocalGameStore();
-  const { updateGameState, updateGameStateFields, submitWord, deleteSubmission } =
+  const { updateGameState, updateGameStateFields, submitWord, deleteSubmission, setRoomStatus } =
     useRoom();
   const { play: playSound } = useSoundEffects();
 
   const [showCountdown, setShowCountdown] = useState(false);
+  const [showAnimatedResults, setShowAnimatedResults] = useState(true);
 
   // Initialize game instance for host
   useEffect(() => {
@@ -289,11 +296,22 @@ export function BoggleBoard() {
     resetGame();
     resetLocalGame();
 
-    if (isHost) {
+    // Reset for next game
+    setIsSpectator(false);
+    setShowAnimatedResults(true);
+
+    if (isHost && roomCode) {
       // Use settings for new game
       const { duration, gridSize } = gameSettings;
 
-      // Create new game state
+      // Clear spectator flags for all players in Firebase
+      const spectatorUpdates: Record<string, boolean | null> = {};
+      Object.keys(players).forEach((pid) => {
+        spectatorUpdates[`players/${pid}/isSpectator`] = null;
+      });
+      await update(ref(db, `rooms/${roomCode}`), spectatorUpdates);
+
+      // Create new game state with ALL players (including former spectators)
       const newGame = new BoggleGame();
       const playerData: Record<string, { name: string }> = {};
       Object.entries(players).forEach(([id, p]) => {
@@ -317,7 +335,7 @@ export function BoggleBoard() {
 
       await updateGameState(state);
     }
-  }, [isHost, players, gameSettings, resetGame, resetLocalGame, updateGameState]);
+  }, [isHost, roomCode, players, gameSettings, resetGame, resetLocalGame, setIsSpectator, updateGameState]);
 
   // Handle back to lobby - return to waiting room with same room code
   const handleBackToLobby = useCallback(async () => {
@@ -331,6 +349,7 @@ export function BoggleBoard() {
 
     // If host, signal to Firebase that we're going back to lobby
     if (isHost && roomCode) {
+      await setRoomStatus('waiting');
       await updateGameStateFields({ phase: 'lobby' });
     }
 
@@ -340,7 +359,7 @@ export function BoggleBoard() {
     } else {
       navigate('/');
     }
-  }, [resetGame, resetLocalGame, navigate, isHost, roomCode, updateGameStateFields]);
+  }, [resetGame, resetLocalGame, navigate, isHost, roomCode, setRoomStatus, updateGameStateFields]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -359,10 +378,11 @@ export function BoggleBoard() {
   // Get player data for the list
   const playerList = Object.entries(players).map(([id, player]) => ({
     id,
-    name: player.name,
+    name: player.name || `Player ${id.slice(0, 6)}`,
     score: scores[id] || 0,
     wordCount: wordCounts[id] || 0,
     isLocal: id === playerId,
+    isSpectator: player.isSpectator || false,
   }));
 
   return (
@@ -381,6 +401,9 @@ export function BoggleBoard() {
 
       {/* Main game area */}
       <main className="flex-1 flex flex-col gap-4 max-w-md mx-auto w-full">
+        {/* Spectator Banner */}
+        {isSpectator && <SpectatorBanner timeRemaining={timeRemaining} />}
+
         {/* Grid */}
         <div className="flex flex-col items-center">
           <div className="relative w-full max-w-sm">
@@ -390,23 +413,44 @@ export function BoggleBoard() {
                 onComplete={handleCountdownComplete}
               />
             )}
-            <Grid onWordSubmit={handleWordSubmit} />
-            <Feedback />
+            <Grid onWordSubmit={handleWordSubmit} disabled={isSpectator} />
+            {!isSpectator && <Feedback />}
           </div>
         </div>
 
         {/* Player List */}
         <GamePlayerList players={playerList} />
+
+        {/* Word List - Show all players' words for spectators, own words for players */}
+        {isSpectator ? (
+          <SpectatorWordList foundWords={foundWords} players={players} />
+        ) : (
+          playerId && <WordList words={foundWords[playerId] || []} />
+        )}
       </main>
 
-      {/* Results Modal */}
+      {/* Results - Animated then Modal */}
       {phase === 'finished' && results && playerId && (
-        <ResultsModal
-          results={results}
-          localPlayerId={playerId}
-          onRematch={handleRematch}
-          onBackToLobby={handleBackToLobby}
-        />
+        showAnimatedResults ? (
+          <AnimatedResults
+            results={results}
+            foundWords={foundWords}
+            players={players}
+            localPlayerId={playerId}
+            isSpectator={isSpectator}
+            onAnimationComplete={() => setShowAnimatedResults(false)}
+            onRematch={handleRematch}
+            onBackToLobby={handleBackToLobby}
+          />
+        ) : (
+          <ResultsModal
+            results={results}
+            localPlayerId={playerId}
+            isSpectator={isSpectator}
+            onRematch={handleRematch}
+            onBackToLobby={handleBackToLobby}
+          />
+        )
       )}
     </div>
   );
