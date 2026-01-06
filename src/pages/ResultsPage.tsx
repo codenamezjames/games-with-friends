@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ref, update } from 'firebase/database';
+import { db } from '@/lib/firebase';
 import { Button } from '@/components/common/Button';
 import { Confetti } from '@/games/wordtrace/components/Confetti';
 import { ResultsGrid } from '@/games/wordtrace/components/ResultsGrid';
@@ -157,13 +159,19 @@ export function ResultsPage() {
     const currentGameType = useGameStore.getState().gameType;
     console.log('[ResultsPage] handleRematch called', { currentRoomCode, isTestMode, isHost });
 
-    // If host, reset the room status to 'waiting' so players can rejoin the lobby
-    if (isHost && currentRoomCode) {
-      await setRoomStatus('waiting');
-    }
-
     // Mark as intentionally leaving to prevent redirect effect from firing
     isLeavingRef.current = true;
+
+    // If host, reset the room status to 'waiting' and clear game state
+    // This prevents guests from being redirected back to results
+    if (isHost && currentRoomCode) {
+      await setRoomStatus('waiting');
+      // Reset game state phase in Firebase so guests don't get redirected back to results
+      await update(ref(db, `rooms/${currentRoomCode}`), {
+        'gameState/phase': 'lobby',
+        'gameState/results': null,
+      });
+    }
 
     // Navigate to appropriate destination
     if (isTestMode) {
