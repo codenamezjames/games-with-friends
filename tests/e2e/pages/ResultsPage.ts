@@ -6,26 +6,35 @@ import { BasePage } from './BasePage';
  */
 export class ResultsPage extends BasePage {
   // Locators
-  readonly winnerDisplay: Locator;
-  readonly playerRankings: Locator;
-  readonly wordReveal: Locator;
+  readonly winnerAnnouncement: Locator;
+  readonly playerScoreCards: Locator;
+  readonly currentWordDisplay: Locator;
   readonly speedToggle: Locator;
   readonly rematchButton: Locator;
   readonly homeButton: Locator;
-  readonly shareButton: Locator;
   readonly confetti: Locator;
+  readonly progressBar: Locator;
+  readonly longestWord: Locator;
+  readonly wordRevealHeader: Locator;
+  readonly trophyEmoji: Locator;
 
   constructor(page: Page) {
     super(page);
 
-    this.winnerDisplay = page.locator('[class*="winner"], h1, h2').first();
-    this.playerRankings = page.locator('[class*="ranking"], [class*="player"]');
-    this.wordReveal = page.locator('[class*="reveal"], [class*="word-card"]');
-    this.speedToggle = page.getByRole('button', { name: /speed|fast|slow/i });
-    this.rematchButton = page.getByRole('button', { name: /play again|rematch/i });
-    this.homeButton = page.getByRole('button', { name: /home|menu|back/i });
-    this.shareButton = page.getByRole('button', { name: /share/i });
-    this.confetti = page.locator('[class*="confetti"], canvas');
+    // Winner phase elements
+    this.winnerAnnouncement = page.locator('.winner-announce h1');
+    this.trophyEmoji = page.locator('.trophy-bounce');
+    this.rematchButton = page.getByRole('button', { name: 'Play Again' });
+    this.homeButton = page.getByRole('button', { name: 'Home' });
+    this.confetti = page.locator('canvas');
+    this.longestWord = page.getByText('Longest Word').locator('..');
+
+    // Reveal phase elements
+    this.wordRevealHeader = page.getByRole('heading', { name: 'Word Reveal' });
+    this.currentWordDisplay = page.locator('.glow-text');
+    this.speedToggle = page.getByRole('button', { name: /1x|2x/ });
+    this.progressBar = page.locator('.bg-primary.transition-all');
+    this.playerScoreCards = page.locator('footer .text-center');
   }
 
   /**
@@ -36,10 +45,10 @@ export class ResultsPage extends BasePage {
   }
 
   /**
-   * Get the winner name or tie message.
+   * Get the winner text from announcement.
    */
   async getWinnerText(): Promise<string> {
-    return this.getTextContent(this.winnerDisplay);
+    return this.getTextContent(this.winnerAnnouncement);
   }
 
   /**
@@ -47,35 +56,55 @@ export class ResultsPage extends BasePage {
    */
   async isTie(): Promise<boolean> {
     const text = await this.getWinnerText();
-    return /tie|draw/i.test(text);
+    return /tie/i.test(text);
   }
 
   /**
-   * Get player scores from rankings.
+   * Check if we're in reveal phase.
    */
-  async getPlayerScores(): Promise<{ name: string; score: number }[]> {
-    const results: { name: string; score: number }[] = [];
-    const count = await this.playerRankings.count();
-
-    for (let i = 0; i < count; i++) {
-      const text = await this.playerRankings.nth(i).textContent();
-      if (text) {
-        // Parse "PlayerName: 123" or similar formats
-        const match = text.match(/([^:]+):\s*(\d+)/);
-        if (match) {
-          results.push({ name: match[1].trim(), score: parseInt(match[2]) });
-        }
-      }
+  async isInRevealPhase(): Promise<boolean> {
+    try {
+      return await this.wordRevealHeader.isVisible();
+    } catch {
+      return false;
     }
-
-    return results;
   }
 
   /**
-   * Toggle speed between normal and fast.
+   * Check if we're in winner phase.
+   */
+  async isInWinnerPhase(): Promise<boolean> {
+    try {
+      return await this.winnerAnnouncement.isVisible();
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Get the current word being revealed.
+   */
+  async getCurrentWord(): Promise<string> {
+    try {
+      return this.getTextContent(this.currentWordDisplay);
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Toggle speed between normal (1x) and fast (2x).
    */
   async toggleSpeed() {
     await this.speedToggle.click();
+  }
+
+  /**
+   * Get current speed setting.
+   */
+  async getSpeed(): Promise<'normal' | 'fast'> {
+    const text = await this.speedToggle.textContent();
+    return text?.includes('2x') ? 'fast' : 'normal';
   }
 
   /**
@@ -83,46 +112,67 @@ export class ResultsPage extends BasePage {
    */
   async rematch() {
     await this.rematchButton.click();
-
     // Wait for navigation to waiting room
     await this.page.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/);
   }
 
   /**
-   * Click home / back to menu.
+   * Click home button.
    */
   async goHome() {
     await this.homeButton.click();
-
     // Wait for navigation
     await this.page.waitForURL('/');
-  }
-
-  /**
-   * Click share button.
-   */
-  async share() {
-    await this.shareButton.click();
   }
 
   /**
    * Check if confetti is visible.
    */
   async hasConfetti(): Promise<boolean> {
-    return this.confetti.isVisible();
+    try {
+      return await this.confetti.isVisible();
+    } catch {
+      return false;
+    }
   }
 
   /**
-   * Wait for word reveal animation to start.
+   * Wait for word reveal phase.
    */
-  async waitForWordReveal(timeout = 10000) {
-    await this.wordReveal.first().waitFor({ state: 'visible', timeout });
+  async waitForRevealPhase(timeout = 10000) {
+    await this.wordRevealHeader.waitFor({ state: 'visible', timeout });
   }
 
   /**
-   * Verify results page is displayed.
+   * Wait for winner phase (reveal complete).
+   */
+  async waitForWinnerPhase(timeout = 120000) {
+    await this.winnerAnnouncement.waitFor({ state: 'visible', timeout });
+  }
+
+  /**
+   * Verify results page is displayed (either phase).
    */
   async expectVisible() {
-    await expect(this.rematchButton).toBeVisible();
+    // Should be in either reveal or winner phase
+    const inReveal = await this.isInRevealPhase();
+    const inWinner = await this.isInWinnerPhase();
+    expect(inReveal || inWinner).toBe(true);
+  }
+
+  /**
+   * Get the trophy emoji (🏆 for winner, 🤝 for tie).
+   */
+  async getTrophyEmoji(): Promise<string> {
+    return this.getTextContent(this.trophyEmoji);
+  }
+
+  /**
+   * Get the longest word displayed.
+   */
+  async getLongestWord(): Promise<string> {
+    const container = this.longestWord;
+    const wordEl = container.locator('.text-accent');
+    return this.getTextContent(wordEl);
   }
 }

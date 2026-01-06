@@ -141,4 +141,20 @@ export class WaitingRoomPage extends BasePage {
   async waitForPlayer(name: string, timeout = 10000) {
     await this.page.getByText(name).waitFor({ state: 'visible', timeout });
   }
+
+  /**
+   * Set game duration (host only).
+   * @param duration Duration label like "1 min", "2 min", "3 min", "5 min"
+   */
+  async setDuration(duration: '1 min' | '2 min' | '3 min' | '5 min') {
+    await this.page.getByRole('button', { name: duration }).click();
+  }
+
+  /**
+   * Set grid size (host only).
+   * @param size Grid size label like "4x4", "5x5", "6x6"
+   */
+  async setGridSize(size: '4x4' | '5x5' | '6x6') {
+    await this.page.getByRole('button', { name: size }).click();
+  }
 }
