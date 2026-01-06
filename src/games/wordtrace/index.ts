@@ -2,20 +2,21 @@
  * Word Trace Game Module
  *
  * This module exports everything needed for the Word Trace game.
- * Full game registry integration will happen in Phase 2.
  */
 
 import { WordTraceGame } from './WordTraceGame';
 import { generateGrid } from './utils';
+import { registerGame } from '../registry';
 import { DEFAULT_WORD_TRACE_SETTINGS } from './types';
+import type { GameConfig } from '../types';
 
 // Re-export types and utilities for convenience
 export * from './types';
 export { WordTraceGame } from './WordTraceGame';
 export * from './utils';
 
-// Game configuration (matches GameConfig interface shape)
-export const wordTraceConfig = {
+// Game configuration
+export const wordTraceConfig: GameConfig = {
   id: 'wordtrace',
   displayName: 'Word Trace',
   description: 'Find words by tracing paths through a grid of letters',
@@ -30,8 +31,8 @@ export const wordTraceConfig = {
   ],
   supportsSolo: true,
   available: true,
-  defaultSettings: DEFAULT_WORD_TRACE_SETTINGS,
-} as const;
+  defaultSettings: { ...DEFAULT_WORD_TRACE_SETTINGS },
+};
 
 // Generate initial game state for multiplayer
 export function generateInitialState(
@@ -68,3 +69,6 @@ export function generateInitialState(
 export function createWordTraceGame(): WordTraceGame {
   return new WordTraceGame();
 }
+
+// Register with the game registry
+registerGame(wordTraceConfig);

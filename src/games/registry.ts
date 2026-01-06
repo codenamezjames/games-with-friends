@@ -1,52 +1,51 @@
-import type { GameModule, GameConfig } from './types';
+import type { GameConfig } from './types';
 
 // ============================================================================
 // Game Registry
 // ============================================================================
 
-const gameRegistry = new Map<string, GameModule>();
+// Store just game configs - page components remain shared infrastructure
+const gameConfigs = new Map<string, GameConfig>();
 
 /**
- * Register a game module with the registry.
+ * Register a game config with the registry.
  * Called by each game's index.ts on app initialization.
  */
-export function registerGame(module: GameModule): void {
-  if (gameRegistry.has(module.config.id)) {
-    console.warn(`[GameRegistry] Game "${module.config.id}" is already registered`);
+export function registerGame(config: GameConfig): void {
+  if (gameConfigs.has(config.id)) {
+    console.warn(`[GameRegistry] Game "${config.id}" is already registered`);
     return;
   }
-  gameRegistry.set(module.config.id, module);
-  console.log(`[GameRegistry] Registered game: ${module.config.id}`);
+  gameConfigs.set(config.id, config);
+  console.log(`[GameRegistry] Registered game: ${config.id}`);
 }
 
 /**
- * Get a game module by ID.
+ * Get a game config by ID.
  */
-export function getGame(gameId: string): GameModule | undefined {
-  return gameRegistry.get(gameId);
+export function getGame(gameId: string): GameConfig | undefined {
+  return gameConfigs.get(gameId);
 }
 
 /**
  * Get all available (released) games.
  */
 export function getAvailableGames(): GameConfig[] {
-  return Array.from(gameRegistry.values())
-    .map((m) => m.config)
-    .filter((c) => c.available);
+  return Array.from(gameConfigs.values()).filter((c) => c.available);
 }
 
 /**
  * Get all registered games (including unavailable/coming soon).
  */
 export function getAllGames(): GameConfig[] {
-  return Array.from(gameRegistry.values()).map((m) => m.config);
+  return Array.from(gameConfigs.values());
 }
 
 /**
  * Check if a game is registered.
  */
 export function hasGame(gameId: string): boolean {
-  return gameRegistry.has(gameId);
+  return gameConfigs.has(gameId);
 }
 
 /**
