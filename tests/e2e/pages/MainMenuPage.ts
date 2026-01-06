@@ -17,7 +17,7 @@ export class MainMenuPage extends BasePage {
   constructor(page: Page) {
     super(page);
 
-    this.nameInput = page.getByPlaceholder(/your name|enter your name/i);
+    this.nameInput = page.locator('#player-name');
     this.createRoomButton = page.getByRole('button', { name: /create room/i });
     this.roomCodeInput = page.getByPlaceholder(/room code/i);
     this.joinButton = page.getByRole('button', { name: /^join$/i });
