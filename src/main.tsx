@@ -4,8 +4,9 @@ import './index.css'
 import App from './App.tsx'
 import { useGameStore } from './stores/useGameStore'
 import { useRoomStore } from './stores/useRoomStore'
+import { generateGridWithWords } from './games/boggle/utils'
 
-const VERSION = '1.5.0';
+const VERSION = '1.6.2';
 console.log(`[Word Trace] v${VERSION}`);
 
 // Debug function to test animated results screen
@@ -20,11 +21,27 @@ window.testResults = (options = {}) => {
   const { playerCount = 2, wordCount = 12 } = options;
 
   const sampleWords = [
-    'CAT', 'DOG', 'BAT', 'RAT', 'HAT', 'MAT',
-    'CATS', 'DOGS', 'BATS', 'RATS', 'HATS',
-    'ABOUT', 'ALERT', 'BLAST', 'CREAM', 'DREAM',
-    'STREAM', 'DREAMS', 'CREAMS', 'STREAMS',
-    'ABSOLUTE', 'ABSTRACT', 'BACKWARD',
+    // 3-letter words
+    'CAT', 'DOG', 'BAT', 'RAT', 'HAT', 'MAT', 'SAT', 'PAT', 'TAT', 'VAT',
+    'COW', 'BOW', 'ROW', 'SOW', 'TOW', 'VOW', 'NOW', 'HOW', 'WOW', 'POW',
+    // 4-letter words
+    'CATS', 'DOGS', 'BATS', 'RATS', 'HATS', 'MATS', 'PATS', 'VATS', 'SAWS',
+    'COWS', 'BOWS', 'ROWS', 'TOWS', 'VOWS', 'PAWS', 'JAWS', 'LAWS', 'RAWS',
+    'GAME', 'FAME', 'NAME', 'SAME', 'TAME', 'CAME', 'LAME', 'DAME',
+    // 5-letter words
+    'ABOUT', 'ALERT', 'BLAST', 'CREAM', 'DREAM', 'FEAST', 'GREAT', 'HEART',
+    'IRATE', 'JOUST', 'KNEAD', 'LEARN', 'MEANT', 'NORTH', 'OVERT', 'PLANT',
+    'QUEST', 'ROAST', 'SOUTH', 'TOAST', 'UNDER', 'VALID', 'WATER', 'YOUTH',
+    // 6-letter words
+    'STREAM', 'DREAMS', 'CREAMS', 'FEASTS', 'HEARTS', 'LEARNS', 'PLANTS',
+    'ROASTS', 'TOASTS', 'WATERS', 'BRAINS', 'CHAINS', 'DRAINS', 'GRAINS',
+    'PLAINS', 'STAINS', 'TRAINS', 'TRAILS', 'TRIALS', 'THRILL',
+    // 7-letter words
+    'STREAMS', 'ABSOLVE', 'ACHIEVE', 'ACQUIRE', 'ANCIENT', 'BALANCE', 'BELIEVE',
+    'CAPTURE', 'DECLARE', 'EXPLORE', 'FREEDOM', 'GROUNDS', 'HARVEST', 'IMAGINE',
+    // 8+ letter words
+    'ABSOLUTE', 'ABSTRACT', 'BACKWARD', 'CALENDAR', 'DARKNESS', 'ELEPHANT',
+    'FAMILIES', 'GRATEFUL', 'HANDLERS', 'IMAGINED', 'JOURNALS', 'KEYBOARD',
   ];
 
   // Generate player IDs
@@ -38,7 +55,7 @@ window.testResults = (options = {}) => {
 
   // Generate mock players
   const players: Record<string, { id: string; name: string; isHost: boolean; isReady: boolean; joinedAt: number }> = {};
-  const names = ['Alice', 'Bob', 'Carol', 'Dave', 'Eve'];
+  const names = ['Alice', 'Bob', 'Carol', 'Dave', 'Eve', 'Frank', 'Grace', 'Henry', 'Iris', 'Jack'];
   playerIds.forEach((id, i) => {
     players[id] = {
       id,
@@ -92,18 +109,24 @@ window.testResults = (options = {}) => {
   const isTie = rankings.length > 1 && rankings[0].score === rankings[1].score;
   const winner = isTie ? null : rankings[0]?.playerId || null;
 
+  // Generate a grid containing the words (use 6x6 for more words)
+  const gridSize = wordCount > 50 ? 6 : 5;
+  const { grid } = generateGridWithWords(wordsToUse, gridSize);
+
   // Update stores
   useRoomStore.setState({ players, playerId: localPlayerId });
   useGameStore.setState({
     phase: 'finished',
     foundWords,
+    grid,
+    gridSize,
     results: { winner, isTie, rankings },
     scores: Object.fromEntries(rankings.map(r => [r.playerId, r.score])),
     wordCounts: Object.fromEntries(rankings.map(r => [r.playerId, r.wordCount])),
     testMode: true,
   });
 
-  console.log('Test results loaded!', { playerCount, wordCount, foundWords, rankings });
+  console.log('Test results loaded!', { playerCount, wordCount, gridSize, foundWords, rankings });
 };
 
 createRoot(document.getElementById('root')!).render(

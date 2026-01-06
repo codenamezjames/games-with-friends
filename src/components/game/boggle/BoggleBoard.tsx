@@ -21,6 +21,7 @@ export function BoggleBoard() {
   const navigate = useNavigate();
   const gameRef = useRef<BoggleGame | null>(null);
   const timerRef = useRef<number | null>(null);
+  const hasEndedRef = useRef(false);
 
   const { playerId, isHost, isSpectator, players } = useRoomStore();
   const {
@@ -87,7 +88,8 @@ export function BoggleBoard() {
 
   // Handle game end - defined first since other callbacks use it
   const handleGameEnd = useCallback(async () => {
-    if (!gameRef.current) return;
+    if (!gameRef.current || hasEndedRef.current) return;
+    hasEndedRef.current = true;
 
     playSound('gameEnd');
     gameRef.current.phase = 'finished';
@@ -102,7 +104,7 @@ export function BoggleBoard() {
     await updateGameState(finalState);
 
     // Navigate to results page
-    navigate('/results');
+    navigate('/games/boggle/results');
   }, [setPhase, setResults, updateGameState, playSound, navigate]);
 
   // Handle countdown complete
@@ -111,7 +113,8 @@ export function BoggleBoard() {
     setPhase('playing');
     playSound('gameStart');
 
-    if (isHost && gameRef.current) {
+    // Guard: don't start another timer if one is already running
+    if (isHost && gameRef.current && !timerRef.current) {
       gameRef.current.phase = 'playing';
       updateGameStateFields({ phase: 'playing' });
 
@@ -137,15 +140,40 @@ export function BoggleBoard() {
     }
   }, [isHost, setPhase, setTimeRemaining, updateGameStateFields, playSound, handleGameEnd]);
 
-  // Resume timer for host rejoining mid-game
+  // Resume timer for host rejoining mid-game or taking over from disconnected host
+  // This runs when isHost becomes true during an active game
   useEffect(() => {
-    if (isHost && phase === 'playing' && !timerRef.current && gameRef.current && timeRemaining > 0) {
-      console.log('[BoggleBoard] Resuming timer for host rejoin, timeRemaining:', timeRemaining);
+    // Clear any existing timer first to prevent duplicates
+    if (timerRef.current) {
+      console.log('[BoggleBoard] Clearing existing timer before resume check');
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // Only resume if:
+    // 1. We're the host
+    // 2. Phase is 'playing' (not countdown)
+    // 3. There's time left
+    // 4. We're not showing countdown (meaning we didn't just come from countdown)
+    const currentTimeRemaining = useGameStore.getState().timeRemaining;
+    if (isHost && phase === 'playing' && currentTimeRemaining > 0 && !showCountdown) {
+      console.log('[BoggleBoard] Starting timer for host, timeRemaining:', currentTimeRemaining);
 
       timerRef.current = window.setInterval(async () => {
         const newTime = useGameStore.getState().timeRemaining - 1;
+
+        // Safety check: don't go below 0
+        if (newTime < 0) {
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          return;
+        }
+
         setTimeRemaining(newTime);
 
+        // Update game instance if available
         if (gameRef.current) {
           gameRef.current.timeRemaining = newTime;
         }
@@ -161,7 +189,17 @@ export function BoggleBoard() {
         }
       }, 1000);
     }
-  }, [isHost, phase, timeRemaining, setTimeRemaining, updateGameStateFields, handleGameEnd]);
+
+    // Cleanup: clear timer when effect re-runs or component unmounts
+    return () => {
+      if (timerRef.current) {
+        console.log('[BoggleBoard] Cleanup: clearing timer');
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHost, phase, showCountdown]);
 
   // Handle word submission
   const handleWordSubmit = useCallback(
@@ -304,6 +342,7 @@ export function BoggleBoard() {
     wordCount: wordCounts[id] || 0,
     isLocal: id === playerId,
     isSpectator: player.isSpectator || false,
+    isConnected: player.isConnected !== false,
   }));
 
   return (

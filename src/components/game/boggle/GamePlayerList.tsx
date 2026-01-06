@@ -6,6 +6,8 @@ interface Player {
   score: number;
   wordCount: number;
   isLocal: boolean;
+  isSpectator?: boolean;
+  isConnected?: boolean;
 }
 
 interface GamePlayerListProps {
@@ -72,6 +74,8 @@ export function GamePlayerList({ players }: GamePlayerListProps) {
           );
           const isPulsing = pulsingPlayers.has(player.id);
 
+          const isDisconnected = player.isConnected === false;
+
           return (
             <li
               key={player.id}
@@ -79,16 +83,29 @@ export function GamePlayerList({ players }: GamePlayerListProps) {
                 player.isLocal
                   ? 'bg-primary/10 border-l-2 border-primary'
                   : 'bg-bg-cell'
-              }`}
+              } ${isDisconnected ? 'opacity-50' : ''}`}
             >
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-text-muted text-sm font-mono w-4">
                   {index + 1}.
                 </span>
-                <span className="font-medium text-text-primary truncate">
+                {/* Connection status indicator */}
+                <span
+                  className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                    isDisconnected ? 'bg-text-muted' : 'bg-success'
+                  }`}
+                  title={isDisconnected ? 'Disconnected' : 'Connected'}
+                />
+                <span className={`font-medium truncate ${isDisconnected ? 'text-text-muted' : 'text-text-primary'}`}>
                   {player.name}
                   {player.isLocal && (
                     <span className="text-xs text-text-muted ml-1">(You)</span>
+                  )}
+                  {player.isSpectator && (
+                    <span className="text-xs text-accent ml-1">(Watching)</span>
+                  )}
+                  {isDisconnected && (
+                    <span className="text-xs text-text-muted ml-1 italic">(offline)</span>
                   )}
                 </span>
               </div>

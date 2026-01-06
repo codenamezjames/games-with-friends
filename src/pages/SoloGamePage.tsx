@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Grid } from '@/components/game/boggle/Grid';
 import { Feedback } from '@/components/game/boggle/Feedback';
+import { WordList } from '@/components/game/boggle/WordList';
 import { Countdown } from '@/components/common/Countdown';
 import { Button } from '@/components/common/Button';
 import { useGameStore } from '@/stores/useGameStore';
@@ -175,7 +176,7 @@ export function SoloGamePage() {
     }
     resetGame();
     resetLocalGame();
-    navigate('/');
+    navigate('/games/boggle');
   }, [resetGame, resetLocalGame, navigate]);
 
   // Cleanup on unmount
@@ -195,6 +196,40 @@ export function SoloGamePage() {
   const myWords = foundWords[playerId] || [];
   const myScore = scores[playerId] || 0;
   const myWordCount = wordCounts[playerId] || 0;
+
+  // Share functionality
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle');
+
+  const handleShare = useCallback(async () => {
+    const shareText = [
+      '🎯 Word Trace Solo Practice 🎯',
+      '',
+      `Score: ${myScore} pts (${myWordCount} words)`,
+      '',
+      myWords.length > 0 ? `Best words: ${myWords.slice(0, 5).join(', ')}` : '',
+      '',
+      'Play at: games-with-friends-1.web.app',
+    ].filter(Boolean).join('\n');
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Word Trace Results', text: shareText });
+        setShareStatus('shared');
+        setTimeout(() => setShareStatus('idle'), 2000);
+        return;
+      } catch {
+        // Fall through to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setShareStatus('copied');
+      setTimeout(() => setShareStatus('idle'), 2000);
+    } catch {
+      // Clipboard failed
+    }
+  }, [myScore, myWordCount, myWords]);
 
   return (
     <div className="min-h-screen p-4 flex flex-col">
@@ -240,6 +275,9 @@ export function SoloGamePage() {
             <Feedback />
           </div>
         </div>
+
+        {/* Word List */}
+        <WordList words={myWords} />
       </main>
 
       {/* Results Modal */}
@@ -283,12 +321,17 @@ export function SoloGamePage() {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3">
-              <Button onClick={handlePlayAgain} className="flex-1">
-                Play Again
-              </Button>
-              <Button variant="secondary" onClick={handleBackToMenu} className="flex-1">
-                Back to Menu
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-3">
+                <Button onClick={handlePlayAgain} className="flex-1">
+                  Play Again
+                </Button>
+                <Button variant="secondary" onClick={handleBackToMenu} className="flex-1">
+                  Back to Menu
+                </Button>
+              </div>
+              <Button variant="secondary" onClick={handleShare} className="w-full">
+                {shareStatus === 'copied' ? 'Copied!' : shareStatus === 'shared' ? 'Shared!' : 'Share Results'}
               </Button>
             </div>
           </div>

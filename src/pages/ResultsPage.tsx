@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/common/Button';
 import { Confetti } from '@/components/game/boggle/Confetti';
-import { prepareWordRevealSequence, getWordPoints } from '@/games/boggle/utils';
+import { ResultsGrid } from '@/components/game/boggle/ResultsGrid';
+import { prepareWordRevealSequence, getWordPoints, findWordPath } from '@/games/boggle/utils';
 import { useGameStore } from '@/stores/useGameStore';
 import { useRoomStore } from '@/stores/useRoomStore';
+import { useRoom } from '@/hooks/useRoom';
 
 interface FloatingPoint {
   id: number;
@@ -17,8 +19,9 @@ type Speed = 'normal' | 'fast';
 
 export function ResultsPage() {
   const navigate = useNavigate();
-  const { results, foundWords, testMode, resetGame } = useGameStore();
-  const { players, playerId: localPlayerId, roomCode } = useRoomStore();
+  const { results, foundWords, grid, gridSize, resetGame } = useGameStore();
+  const { players, playerId: localPlayerId } = useRoomStore();
+  const { setRoomStatus } = useRoom();
 
   const [phase, setPhase] = useState<AnimationPhase>('revealing');
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
@@ -30,6 +33,12 @@ export function ResultsPage() {
 
   const timerRef = useRef<number | null>(null);
   const idCounterRef = useRef(0);
+  const speedRef = useRef<Speed>(speed);
+
+  // Keep speedRef in sync with speed state
+  useEffect(() => {
+    speedRef.current = speed;
+  }, [speed]);
 
   // Redirect if no results
   useEffect(() => {
@@ -90,7 +99,7 @@ export function ResultsPage() {
     });
   }, []);
 
-  // Animation timer
+  // Animation timer - uses recursive setTimeout to respect speed changes
   useEffect(() => {
     if (wordSequence.length === 0) {
       setPhase('winner');
@@ -100,70 +109,82 @@ export function ResultsPage() {
 
     if (phase !== 'revealing') return;
 
-    const delay = speed === 'fast' ? 500 : 1000;
-
-    const startTimer = setTimeout(() => {
-      setCurrentWordIndex(0);
-      awardPoints(wordSequence[0]);
-    }, 500);
-
-    timerRef.current = window.setInterval(() => {
-      setCurrentWordIndex((prev) => {
-        const next = prev + 1;
+    const scheduleNext = (index: number) => {
+      const delay = speedRef.current === 'fast' ? 500 : 1000;
+      timerRef.current = window.setTimeout(() => {
+        const next = index + 1;
         if (next >= wordSequence.length) {
-          if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
-          setTimeout(() => {
+          timerRef.current = window.setTimeout(() => {
             setPhase('winner');
             setShowConfetti(true);
           }, 1000);
-          return prev;
+          return;
         }
+        setCurrentWordIndex(next);
         awardPoints(wordSequence[next]);
-        return next;
-      });
-    }, delay);
+        scheduleNext(next);
+      }, delay);
+    };
+
+    // Initial delay before starting
+    const startTimer = setTimeout(() => {
+      setCurrentWordIndex(0);
+      awardPoints(wordSequence[0]);
+      scheduleNext(0);
+    }, 500);
 
     return () => {
       clearTimeout(startTimer);
       if (timerRef.current) {
-        clearInterval(timerRef.current);
+        clearTimeout(timerRef.current);
         timerRef.current = null;
       }
     };
-  }, [phase, speed, wordSequence, awardPoints]);
+  }, [phase, wordSequence, awardPoints]);
 
   // Handlers
   const handleSpeedToggle = useCallback(() => {
     setSpeed((prev) => (prev === 'normal' ? 'fast' : 'normal'));
   }, []);
 
-  const handleRematch = useCallback(() => {
+  const handleRematch = useCallback(async () => {
+    // Get values directly from stores to avoid stale closure issues
+    const currentRoomCode = useRoomStore.getState().roomCode;
+    const isTestMode = useGameStore.getState().testMode;
+    const isHost = useRoomStore.getState().isHost;
+    console.log('[ResultsPage] handleRematch called', { currentRoomCode, isTestMode, isHost });
+
+    // If host, reset the room status to 'waiting' so players can rejoin the lobby
+    if (isHost && currentRoomCode) {
+      await setRoomStatus('waiting');
+    }
+
     resetGame();
-    if (testMode) {
-      useGameStore.setState({ testMode: false });
+    if (isTestMode) {
       navigate('/');
-    } else if (roomCode) {
-      navigate(`/lobby/room/${roomCode}`);
+    } else if (currentRoomCode) {
+      navigate(`/games/boggle/room/${currentRoomCode}`);
     } else {
+      console.warn('[ResultsPage] No roomCode found, navigating home');
       navigate('/');
     }
-  }, [resetGame, testMode, roomCode, navigate]);
+  }, [resetGame, navigate, setRoomStatus]);
 
   const handleBackToLobby = useCallback(() => {
     resetGame();
-    if (testMode) {
-      useGameStore.setState({ testMode: false });
-    }
     navigate('/');
-  }, [resetGame, testMode, navigate]);
+  }, [resetGame, navigate]);
 
   // Current word
   const currentWord = currentWordIndex >= 0 && currentWordIndex < wordSequence.length
     ? wordSequence[currentWordIndex]
     : null;
+
+  // Find path for current word in grid
+  const currentWordPath = useMemo(() => {
+    if (!currentWord || grid.length === 0) return [];
+    return findWordPath(grid, currentWord.word, gridSize) || [];
+  }, [currentWord, grid, gridSize]);
 
   // Counts
   const sharedCount = wordSequence.filter((w) => w.isShared).length;
@@ -208,22 +229,20 @@ export function ResultsPage() {
         </header>
 
         {/* Main content */}
-        <main className="flex-1 flex flex-col items-center justify-center px-4">
-          {/* Category label */}
-          <div className="text-text-muted text-sm mb-2">
-            {currentWord?.isShared ? 'Shared Word' : 'Unique Word'}
-          </div>
-
-          {/* Current word - BIG and centered */}
+        <main className="flex-1 flex flex-col items-center justify-center px-4 gap-4">
+          {/* Current word display */}
           {currentWord ? (
             <div
               key={currentWordIndex}
-              className={`text-center mb-6 ${currentWordIndex % 2 === 0 ? 'slide-in-left' : 'slide-in-right'}`}
+              className={`text-center ${currentWordIndex % 2 === 0 ? 'slide-in-left' : 'slide-in-right'}`}
             >
-              <div className="text-6xl md:text-8xl font-black text-text-primary tracking-wider mb-4 glow-text">
+              <div className="text-text-muted text-sm mb-1">
+                {currentWord.isShared ? 'Shared Word' : 'Unique Word'}
+              </div>
+              <div className="text-5xl md:text-6xl font-black text-text-primary tracking-wider mb-2 glow-text">
                 {currentWord.word}
               </div>
-              <div className="inline-block bg-primary/30 text-primary px-6 py-2 rounded-full text-2xl font-bold">
+              <div className="inline-block bg-primary/30 text-primary px-4 py-1 rounded-full text-xl font-bold">
                 +{currentWord.points} {currentWord.points === 1 ? 'point' : 'points'}
               </div>
             </div>
@@ -231,24 +250,14 @@ export function ResultsPage() {
             <div className="text-4xl text-text-muted animate-pulse">Starting...</div>
           )}
 
-          {/* Players who found it */}
-          {currentWord && (
-            <div className="flex flex-wrap justify-center gap-3 mb-8">
-              {sortedPlayers.map((player) => {
-                const found = currentWord.foundByPlayerIds.includes(player.id);
-                return (
-                  <div
-                    key={player.id}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      found
-                        ? 'bg-success/30 text-success scale-110 ring-2 ring-success'
-                        : 'bg-bg-cell/50 text-text-muted'
-                    }`}
-                  >
-                    {player.name} {found && '✓'}
-                  </div>
-                );
-              })}
+          {/* Grid with highlighted path */}
+          {grid.length > 0 && (
+            <div className="w-full max-w-xs">
+              <ResultsGrid
+                grid={grid}
+                gridSize={gridSize}
+                highlightedPath={currentWordPath}
+              />
             </div>
           )}
         </main>

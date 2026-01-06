@@ -17,7 +17,7 @@ function TestResultsNavigator() {
 
   useEffect(() => {
     if (testMode && phase === 'finished') {
-      navigate('/results');
+      navigate('/games/boggle/results');
     }
   }, [testMode, phase, navigate]);
 
@@ -53,11 +53,18 @@ function AppContent() {
     }>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/lobby" element={<LobbyPage />} />
-        <Route path="/lobby/room/:roomCode" element={<LobbyPage />} />
-        <Route path="/game/:roomCode" element={<GamePage />} />
-        <Route path="/solo" element={<SoloGamePage />} />
-        <Route path="/results" element={<ResultsPage />} />
+        {/* Boggle game routes */}
+        <Route path="/games/boggle" element={<LobbyPage />} />
+        <Route path="/games/boggle/room/:roomCode" element={<LobbyPage />} />
+        <Route path="/games/boggle/play/:roomCode" element={<GamePage />} />
+        <Route path="/games/boggle/solo" element={<SoloGamePage />} />
+        <Route path="/games/boggle/results" element={<ResultsPage />} />
+        {/* Legacy redirects */}
+        <Route path="/lobby" element={<Navigate to="/games/boggle" replace />} />
+        <Route path="/lobby/room/:roomCode" element={<Navigate to="/games/boggle" replace />} />
+        <Route path="/game/:roomCode" element={<Navigate to="/games/boggle" replace />} />
+        <Route path="/solo" element={<Navigate to="/games/boggle/solo" replace />} />
+        <Route path="/results" element={<Navigate to="/games/boggle/results" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

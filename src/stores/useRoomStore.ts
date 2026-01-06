@@ -9,6 +9,7 @@ interface RoomState {
   playerId: string | null;
   playerName: string;
   isHost: boolean;
+  isSpectator: boolean;
   players: Record<string, Player>;
   roomStatus: RoomStatus | null;
   gameType: string | null;
@@ -19,6 +20,7 @@ interface RoomState {
   setPlayerId: (id: string | null) => void;
   setPlayerName: (name: string) => void;
   setIsHost: (value: boolean) => void;
+  setIsSpectator: (value: boolean) => void;
   setPlayers: (players: Record<string, Player>) => void;
   setRoomStatus: (status: RoomStatus | null) => void;
   setGameType: (type: string | null) => void;
@@ -31,6 +33,7 @@ const initialState = {
   playerId: null,
   playerName: '',
   isHost: false,
+  isSpectator: false,
   players: {},
   roomStatus: null,
   gameType: null,
@@ -46,6 +49,7 @@ export const useRoomStore = create<RoomState>()(
       setPlayerId: (id) => set({ playerId: id }),
       setPlayerName: (name) => set({ playerName: name }),
       setIsHost: (value) => set({ isHost: value }),
+      setIsSpectator: (value) => set({ isSpectator: value }),
       setPlayers: (players) => set({ players }),
       setRoomStatus: (status) => set({ roomStatus: status }),
       setGameType: (type) => set({ gameType: type }),
@@ -63,6 +67,7 @@ export const useRoomStore = create<RoomState>()(
         playerId: state.playerId,
         playerName: state.playerName,
         isHost: state.isHost,
+        isSpectator: state.isSpectator,
         gameType: state.gameType,
         gameSettings: state.gameSettings,
       }),

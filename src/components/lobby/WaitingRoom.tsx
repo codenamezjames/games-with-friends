@@ -1,29 +1,190 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ref, get } from 'firebase/database';
+import { db } from '@/lib/firebase';
 import { Button } from '@/components/common/Button';
 import { PlayerList } from './PlayerList';
 import { GameSettings } from './GameSettings';
 import { useRoom } from '@/hooks/useRoom';
 import { useRoomListeners } from '@/hooks/useRoomListeners';
+import { usePresence } from '@/hooks/usePresence';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
 import { generateGrid } from '@/games/boggle/utils';
 
+const JOIN_TIMEOUT_MS = 10000; // 10 seconds to join/rejoin
+
 export function WaitingRoom() {
   const navigate = useNavigate();
   const { roomCode: urlRoomCode } = useParams<{ roomCode: string }>();
-  const { leaveRoom, setReady, startGame, updateGameState } = useRoom();
-  const { roomCode, isHost, players, gameSettings } = useRoomStore();
-  const { setGrid, setGridSize, setDuration, setPhase, setStartTime, setTimeRemaining } =
+  const { leaveRoom, setReady, startGame, updateGameState, rejoinRoom } = useRoom();
+  const { roomCode, isHost, players, gameSettings, resetRoom } = useRoomStore();
+  const { setGrid, setGridSize, setDuration, setPhase, setStartTime, setTimeRemaining, resetGame } =
     useGameStore();
 
   const [isStarting, setIsStarting] = useState(false);
+  const [isJoining, setIsJoining] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Set up room listeners
+  // Set up room listeners and presence heartbeat
   useRoomListeners();
+  usePresence();
+
+  // Handle joining/rejoining room on mount
+  useEffect(() => {
+    let joinTimeout: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+
+    const attemptJoin = async () => {
+      // Small delay for Zustand hydration
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const {
+        roomCode: currentRoomCode,
+        playerId: currentPlayerId,
+        playerName: currentPlayerName,
+      } = useRoomStore.getState();
+
+      const targetRoomCode = currentRoomCode || urlRoomCode;
+
+      console.log('[WaitingRoom] Attempting join/rejoin', {
+        currentRoomCode,
+        urlRoomCode,
+        currentPlayerId,
+        currentPlayerName,
+      });
+
+      // No room code at all
+      if (!targetRoomCode) {
+        console.log('[WaitingRoom] No room code');
+        if (!cancelled) {
+          setError('No room code provided');
+          setIsJoining(false);
+        }
+        return;
+      }
+
+      // No player ID (not authenticated)
+      if (!currentPlayerId) {
+        console.log('[WaitingRoom] No player ID, waiting for auth...');
+        // Wait a bit longer for auth
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const { playerId: retryPlayerId } = useRoomStore.getState();
+        if (!retryPlayerId) {
+          if (!cancelled) {
+            setError('Authentication failed. Please refresh.');
+            setIsJoining(false);
+          }
+          return;
+        }
+      }
+
+      // Set timeout to prevent hanging
+      joinTimeout = setTimeout(() => {
+        if (!cancelled) {
+          setError('Connection timeout. Please try again.');
+          setIsJoining(false);
+        }
+      }, JOIN_TIMEOUT_MS);
+
+      try {
+        // Check if room exists
+        const roomRef = ref(db, `rooms/${targetRoomCode}`);
+        const roomSnapshot = await get(roomRef);
+
+        if (!roomSnapshot.exists()) {
+          console.log('[WaitingRoom] Room does not exist');
+          clearTimeout(joinTimeout);
+          if (!cancelled) {
+            setError('Room not found. It may have been closed.');
+            setIsJoining(false);
+          }
+          return;
+        }
+
+        const roomData = roomSnapshot.val();
+        const status = roomData?.metadata?.status;
+
+        // Check if we're in this room in Firebase (check early for rematch flow)
+        const roomPlayers = roomData?.players || {};
+        const { playerId: currentPlayerId } = useRoomStore.getState();
+        const isInRoom = currentPlayerId && roomPlayers[currentPlayerId];
+
+        // If we're already in the room (just joined via MainMenu, refreshing, or rematch), we're good
+        // This handles the rematch flow where status might still be 'finished' briefly
+        if (currentRoomCode === targetRoomCode && isInRoom) {
+          console.log('[WaitingRoom] Already in room, showing waiting room', { status });
+          clearTimeout(joinTimeout);
+          if (!cancelled) {
+            setIsJoining(false);
+          }
+          return;
+        }
+
+        // If game is in progress, redirect to game page
+        if (status === 'countdown' || status === 'playing') {
+          console.log('[WaitingRoom] Game in progress, redirecting to game');
+          clearTimeout(joinTimeout);
+          if (!cancelled) {
+            navigate(`/games/boggle/play/${targetRoomCode}`);
+          }
+          return;
+        }
+
+        // If game is finished and we're NOT in the room, show error (new players can't join finished games)
+        if (status === 'finished') {
+          console.log('[WaitingRoom] Game finished and not in room');
+          clearTimeout(joinTimeout);
+          if (!cancelled) {
+            setError('This game has already ended.');
+            setIsJoining(false);
+          }
+          return;
+        }
+
+        // If we have the room code but aren't in Firebase, try to rejoin (handles refresh)
+        if (currentRoomCode === targetRoomCode && !isInRoom) {
+          console.log('[WaitingRoom] Have room code but not in Firebase, attempting rejoin');
+          const success = await rejoinRoom();
+          clearTimeout(joinTimeout);
+          if (!cancelled) {
+            if (!success) {
+              // Rejoin failed - need to join fresh
+              console.log('[WaitingRoom] Rejoin failed, redirecting to join page');
+              navigate(`/games/boggle?room=${targetRoomCode}`);
+            }
+            setIsJoining(false);
+          }
+          return;
+        }
+
+        // We have a URL room code but no current room - need to join
+        // Redirect to main menu where they can enter their name
+        console.log('[WaitingRoom] Need to join room, redirecting to main menu');
+        clearTimeout(joinTimeout);
+        if (!cancelled) {
+          navigate(`/games/boggle?room=${targetRoomCode}`);
+        }
+      } catch (err) {
+        clearTimeout(joinTimeout);
+        console.error('[WaitingRoom] Join error:', err);
+        if (!cancelled) {
+          setError('Failed to connect. Please try again.');
+          setIsJoining(false);
+        }
+      }
+    };
+
+    attemptJoin();
+
+    return () => {
+      cancelled = true;
+      if (joinTimeout) clearTimeout(joinTimeout);
+    };
+  }, [urlRoomCode, rejoinRoom, navigate]);
 
   // Generate share URL
-  const shareUrl = `${window.location.origin}/lobby?room=${roomCode || urlRoomCode}`;
+  const shareUrl = `${window.location.origin}/games/boggle?room=${roomCode || urlRoomCode}`;
 
   const copyCode = async () => {
     await navigator.clipboard.writeText(roomCode || urlRoomCode || '');
@@ -39,7 +200,11 @@ export function WaitingRoom() {
   };
 
   const handleReadyToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    await setReady(e.target.checked);
+    try {
+      await setReady(e.target.checked);
+    } catch (err) {
+      console.error('Failed to set ready state:', err);
+    }
   };
 
   const handleStartGame = async () => {
@@ -64,15 +229,17 @@ export function WaitingRoom() {
       setPhase('countdown');
       setStartTime(startTime);
 
-      // Initialize scores for all players
+      // Initialize scores for all players (excluding spectators)
       const scores: Record<string, number> = {};
       const wordCounts: Record<string, number> = {};
       const foundWords: Record<string, string[]> = {};
 
-      Object.keys(players).forEach((playerId) => {
-        scores[playerId] = 0;
-        wordCounts[playerId] = 0;
-        foundWords[playerId] = [];
+      Object.entries(players).forEach(([playerId, player]) => {
+        if (!player.isSpectator) {
+          scores[playerId] = 0;
+          wordCounts[playerId] = 0;
+          foundWords[playerId] = [];
+        }
       });
 
       const initialState = {
@@ -94,6 +261,59 @@ export function WaitingRoom() {
       setIsStarting(false);
     }
   };
+
+  // Handle going home
+  const handleGoHome = useCallback(() => {
+    resetRoom();
+    resetGame();
+    navigate('/');
+  }, [resetRoom, resetGame, navigate]);
+
+  // Handle retry
+  const handleRetry = useCallback(() => {
+    window.location.reload();
+  }, []);
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+        <div className="text-error text-lg text-center">{error}</div>
+        <div className="flex gap-3">
+          <button
+            onClick={handleRetry}
+            className="px-4 py-2 bg-primary text-bg-main rounded-lg font-medium hover:bg-primary/90"
+          >
+            Retry
+          </button>
+          <button
+            onClick={handleGoHome}
+            className="px-4 py-2 bg-bg-cell text-text-primary rounded-lg font-medium hover:bg-bg-cell-hover"
+          >
+            Go Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state while joining
+  if (isJoining) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-2">
+        <div className="text-text-muted text-lg">Joining room...</div>
+        <div className="text-text-muted text-sm opacity-50">
+          This should only take a moment
+        </div>
+        <button
+          onClick={handleGoHome}
+          className="mt-4 px-4 py-2 bg-bg-cell text-text-primary rounded-lg font-medium hover:bg-bg-cell-hover"
+        >
+          Choose New Game
+        </button>
+      </div>
+    );
+  }
 
   // Check if we can start
   const playerCount = Object.keys(players).length;

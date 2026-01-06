@@ -16,17 +16,22 @@ import { useRoomStore } from '@/stores/useRoomStore';
 const ROOM_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function generateRoomCode(): string {
-  let code = '';
+  let code = '';http://localhost:5173/games/boggle
   for (let i = 0; i < 6; i++) {
     code += ROOM_CODE_CHARS[Math.floor(Math.random() * ROOM_CODE_CHARS.length)];
   }
   return code;
 }
 
+export interface JoinResult {
+  isSpectator: boolean;
+}
+
 export function useRoom() {
   const {
     setRoomCode,
     setIsHost,
+    setIsSpectator,
     setPlayerName,
     setGameType,
     resetRoom,
@@ -37,13 +42,22 @@ export function useRoom() {
       const currentPlayerId = useRoomStore.getState().playerId;
       if (!currentPlayerId) throw new Error('Not authenticated');
 
+      // Generate unique room code with collision check
       let roomCode = generateRoomCode();
       let roomRef = ref(db, `rooms/${roomCode}`);
+      let snapshot = await get(roomRef);
 
-      // Check for collision
-      const snapshot = await get(roomRef);
+      // Retry with new codes if collision (up to 10 attempts)
+      let attempts = 0;
+      while (snapshot.exists() && attempts < 10) {
+        roomCode = generateRoomCode();
+        roomRef = ref(db, `rooms/${roomCode}`);
+        snapshot = await get(roomRef);
+        attempts++;
+      }
+
       if (snapshot.exists()) {
-        return createRoom(gameType, playerName); // Retry
+        throw new Error('Failed to generate unique room code');
       }
 
       // Create room
@@ -60,15 +74,17 @@ export function useRoom() {
             isHost: true,
             isReady: true,
             joinedAt: serverTimestamp(),
+            isConnected: true,
+            lastSeen: serverTimestamp(),
           },
         },
         gameState: null,
         submissions: null,
       });
 
-      // Set up presence (remove player on disconnect)
+      // Set up presence - mark as disconnected instead of removing
       const playerRef = ref(db, `rooms/${roomCode}/players/${currentPlayerId}`);
-      await onDisconnect(playerRef).remove();
+      await onDisconnect(playerRef).update({ isConnected: false });
 
       // Update store
       setRoomCode(roomCode);
@@ -82,7 +98,7 @@ export function useRoom() {
   );
 
   const joinRoom = useCallback(
-    async (roomCode: string, playerName: string): Promise<void> => {
+    async (roomCode: string, playerName: string): Promise<JoinResult> => {
       const currentPlayerId = useRoomStore.getState().playerId;
       if (!currentPlayerId) throw new Error('Not authenticated');
 
@@ -95,35 +111,46 @@ export function useRoom() {
       }
 
       const roomData = snapshot.val();
+      const status = roomData.metadata.status;
 
-      if (roomData.metadata.status !== 'waiting') {
-        throw new Error('Game already in progress');
+      // Check if game is finished
+      if (status === 'finished') {
+        throw new Error('Game has ended');
       }
 
       const playerCount = Object.keys(roomData.players || {}).length;
-      if (playerCount >= 2) {
+      if (playerCount >= 20) {
         throw new Error('Room is full');
       }
+
+      // Determine if joining as spectator (game in progress)
+      const isSpectator = status === 'countdown' || status === 'playing';
 
       // Join room
       const playerRef = ref(db, `rooms/${roomCode}/players/${currentPlayerId}`);
       await set(playerRef, {
         name: playerName,
         isHost: false,
-        isReady: false,
+        isReady: !isSpectator, // Spectators start not ready, regular players need to ready up
         joinedAt: serverTimestamp(),
+        isSpectator,
+        isConnected: true,
+        lastSeen: serverTimestamp(),
       });
 
-      // Set up presence
-      await onDisconnect(playerRef).remove();
+      // Set up presence - mark as disconnected instead of removing
+      await onDisconnect(playerRef).update({ isConnected: false });
 
       // Update store
       setRoomCode(roomCode);
       setIsHost(false);
+      setIsSpectator(isSpectator);
       setPlayerName(playerName);
       setGameType(roomData.metadata.gameType);
+
+      return { isSpectator };
     },
-    [setRoomCode, setIsHost, setPlayerName, setGameType]
+    [setRoomCode, setIsHost, setIsSpectator, setPlayerName, setGameType]
   );
 
   const leaveRoom = useCallback(async (): Promise<void> => {
@@ -162,39 +189,47 @@ export function useRoom() {
 
     const roomData = snapshot.val();
     const players = roomData.players || {};
+    const playerRef = ref(db, `rooms/${roomCode}/players/${currentPlayerId}`);
 
     // Check if we're already in the room
     if (players[currentPlayerId]) {
-      // Already in room, just set up presence again
-      const playerRef = ref(db, `rooms/${roomCode}/players/${currentPlayerId}`);
-      await onDisconnect(playerRef).remove();
+      // Already in room, just mark as connected and set up presence again
+      await update(playerRef, {
+        isConnected: true,
+        lastSeen: serverTimestamp(),
+      });
+      await onDisconnect(playerRef).update({ isConnected: false });
       setGameType(roomData.metadata.gameType);
+
+      // Restore isHost from Firebase if it differs from local state
+      const wasHost = players[currentPlayerId].isHost;
+      if (wasHost !== isHost) {
+        setIsHost(wasHost);
+      }
       return true;
     }
 
-    // Not in room, try to rejoin
-    // Only allow rejoin if game is still in progress (not waiting)
-    if (roomData.metadata.status === 'waiting') {
-      // Room is in waiting state, player needs to join properly
-      resetRoom();
-      return false;
-    }
+    // Not in room - check if we were the original host
+    const wasOriginalHost = roomData.metadata.hostId === currentPlayerId;
+    const shouldBeHost = wasOriginalHost || isHost;
 
-    // Re-add player to the room
-    const playerRef = ref(db, `rooms/${roomCode}/players/${currentPlayerId}`);
+    // Re-add player to the room (works for both waiting and in-progress states)
     await set(playerRef, {
       name: playerName,
-      isHost,
-      isReady: true,
+      isHost: shouldBeHost,
+      isReady: roomData.metadata.status !== 'waiting',
       joinedAt: serverTimestamp(),
+      isConnected: true,
+      lastSeen: serverTimestamp(),
     });
 
-    // Set up presence
-    await onDisconnect(playerRef).remove();
+    // Set up presence - mark as disconnected instead of removing
+    await onDisconnect(playerRef).update({ isConnected: false });
     setGameType(roomData.metadata.gameType);
+    setIsHost(shouldBeHost);
 
     return true;
-  }, [resetRoom, setGameType]);
+  }, [resetRoom, setGameType, setIsHost]);
 
   const setReady = useCallback(
     async (isReady: boolean): Promise<void> => {
@@ -255,8 +290,8 @@ export function useRoom() {
 
   const submitWord = useCallback(
     async (word: string, path: number[]): Promise<void> => {
-      const { roomCode, playerId: currentPlayerId } = useRoomStore.getState();
-      if (!roomCode || !currentPlayerId) return;
+      const { roomCode, playerId: currentPlayerId, isSpectator } = useRoomStore.getState();
+      if (!roomCode || !currentPlayerId || isSpectator) return; // Block spectators
 
       const submissionsRef = ref(db, `rooms/${roomCode}/submissions`);
       await push(submissionsRef, {
@@ -277,6 +312,56 @@ export function useRoom() {
     await remove(submissionRef);
   }, []);
 
+  const setRoomStatus = useCallback(
+    async (status: 'waiting' | 'countdown' | 'playing'): Promise<void> => {
+      const { roomCode, isHost } = useRoomStore.getState();
+      if (!roomCode || !isHost) return;
+
+      const statusRef = ref(db, `rooms/${roomCode}/metadata/status`);
+      await set(statusRef, status);
+    },
+    []
+  );
+
+  // Transfer host to another player
+  const transferHost = useCallback(
+    async (newHostId: string): Promise<void> => {
+      const { roomCode, playerId: currentPlayerId } = useRoomStore.getState();
+      if (!roomCode) return;
+
+      const roomRef = ref(db, `rooms/${roomCode}`);
+
+      // Update metadata.hostId and player host flags atomically
+      await update(roomRef, {
+        'metadata/hostId': newHostId,
+        [`players/${currentPlayerId}/isHost`]: false,
+        [`players/${newHostId}/isHost`]: true,
+      });
+
+      // Update local state if we were the old host
+      if (currentPlayerId !== newHostId) {
+        setIsHost(false);
+      }
+    },
+    [setIsHost]
+  );
+
+  // Claim host role (used when host disconnects and we're taking over)
+  const claimHost = useCallback(async (): Promise<void> => {
+    const { roomCode, playerId: currentPlayerId } = useRoomStore.getState();
+    if (!roomCode || !currentPlayerId) return;
+
+    const roomRef = ref(db, `rooms/${roomCode}`);
+
+    // Update metadata.hostId and our player host flag
+    await update(roomRef, {
+      'metadata/hostId': currentPlayerId,
+      [`players/${currentPlayerId}/isHost`]: true,
+    });
+
+    setIsHost(true);
+  }, [setIsHost]);
+
   return {
     createRoom,
     joinRoom,
@@ -288,5 +373,8 @@ export function useRoom() {
     updateGameStateFields,
     submitWord,
     deleteSubmission,
+    setRoomStatus,
+    transferHost,
+    claimHost,
   };
 }

@@ -7,16 +7,19 @@ import { useRoomStore } from '@/stores/useRoomStore';
 export function MainMenu() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const prefillCode = searchParams.get('room') || '';
+  const prefillCode = searchParams.get('room')?.toUpperCase() || '';
   const gameType = searchParams.get('game') || 'boggle';
 
   const { createRoom, joinRoom } = useRoom();
   const { playerName, setPlayerName } = useRoomStore();
 
-  const [roomCode, setRoomCode] = useState(prefillCode.toUpperCase());
+  const [roomCode, setRoomCode] = useState(prefillCode);
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // If we have a prefill code from URL, show focused join view
+  const isJoinMode = prefillCode.length > 0;
 
   const handleCreate = async () => {
     if (!playerName.trim()) {
@@ -29,7 +32,7 @@ export function MainMenu() {
 
     try {
       const code = await createRoom(gameType, playerName.trim());
-      navigate(`/lobby/room/${code}`);
+      navigate(`/games/boggle/room/${code}`);
     } catch (err) {
       setError((err as Error).message);
       setIsCreating(false);
@@ -42,7 +45,8 @@ export function MainMenu() {
       return;
     }
 
-    if (roomCode.length !== 6) {
+    const codeToJoin = roomCode || prefillCode;
+    if (codeToJoin.length !== 6) {
       setError('Please enter a 6-character room code');
       return;
     }
@@ -51,8 +55,14 @@ export function MainMenu() {
     setError(null);
 
     try {
-      await joinRoom(roomCode, playerName.trim());
-      navigate(`/lobby/room/${roomCode}`);
+      const result = await joinRoom(codeToJoin, playerName.trim());
+      if (result.isSpectator) {
+        // Game in progress - go directly to game as spectator
+        navigate(`/games/boggle/play/${codeToJoin}`);
+      } else {
+        // Normal join - go to lobby
+        navigate(`/games/boggle/room/${codeToJoin}`);
+      }
     } catch (err) {
       setError((err as Error).message);
       setIsJoining(false);
@@ -64,6 +74,75 @@ export function MainMenu() {
     setRoomCode(value);
   };
 
+  const handleBackToMenu = () => {
+    // Clear the room param and go back to main menu
+    navigate('/games/boggle');
+  };
+
+  // Focused join view when user has a room code in URL
+  if (isJoinMode) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-5">
+        <div className="bg-bg-card rounded-[var(--radius-default)] p-10 w-full max-w-md shadow-xl">
+          <h1 className="text-3xl font-bold text-center bg-gradient-to-br from-primary-light to-accent bg-clip-text text-transparent mb-2">
+            Word Trace
+          </h1>
+          <p className="text-center text-text-muted mb-2">You've been invited to play!</p>
+
+          {/* Room code display */}
+          <div className="text-center mb-6">
+            <span className="text-xs text-text-muted uppercase tracking-wider">Room Code</span>
+            <div className="text-3xl font-mono font-bold text-primary tracking-widest">
+              {prefillCode}
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-error/20 border border-error rounded-lg p-3 mb-4 text-error text-sm text-center">
+              {error}
+            </div>
+          )}
+
+          {/* Name input */}
+          <div className="mb-6">
+            <label
+              htmlFor="player-name"
+              className="block text-text-muted text-sm mb-2"
+            >
+              Enter your name to join
+            </label>
+            <input
+              type="text"
+              id="player-name"
+              placeholder="Your name"
+              maxLength={20}
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+              autoFocus
+              className="w-full px-4 py-3 bg-bg-cell border-none rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary text-center text-lg"
+            />
+          </div>
+
+          {/* Join button */}
+          <Button onClick={handleJoin} disabled={isJoining} className="w-full text-lg py-3">
+            {isJoining ? 'Joining...' : 'Join Game'}
+          </Button>
+
+          {/* Back link */}
+          <Button
+            variant="link"
+            className="w-full mt-4"
+            onClick={handleBackToMenu}
+          >
+            Create your own room instead
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Full menu view (create or join)
   return (
     <div className="flex items-center justify-center min-h-screen p-5">
       <div className="bg-bg-card rounded-[var(--radius-default)] p-10 w-full max-w-md shadow-xl">
@@ -117,15 +196,15 @@ export function MainMenu() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="ABCD12"
+              placeholder="Room code"
               maxLength={6}
               value={roomCode}
               onChange={handleRoomCodeChange}
               onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-              className="flex-1 px-4 py-3 bg-bg-cell border-none rounded-lg text-text-primary text-center uppercase tracking-widest placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+              className="flex-1 px-4 py-3 bg-bg-cell border-none rounded-lg text-text-primary text-center uppercase tracking-widest placeholder:text-text-muted placeholder:normal-case placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <Button variant="secondary" onClick={handleJoin} disabled={isJoining}>
-              {isJoining ? 'Joining...' : 'Join'}
+              {isJoining ? '...' : 'Join'}
             </Button>
           </div>
         </div>
@@ -133,7 +212,7 @@ export function MainMenu() {
         <Button
           variant="link"
           className="w-full mt-6"
-          onClick={() => navigate('/solo')}
+          onClick={() => navigate('/games/boggle/solo')}
         >
           Play Solo
         </Button>

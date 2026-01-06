@@ -4,6 +4,10 @@ export interface Player {
   isHost: boolean;
   isReady: boolean;
   joinedAt: number;
+  isSpectator?: boolean;
+  // Presence tracking
+  lastSeen?: number;      // Timestamp of last heartbeat
+  isConnected?: boolean;  // false when disconnected (set by onDisconnect)
 }
 
 export type RoomStatus = 'waiting' | 'countdown' | 'playing' | 'finished';

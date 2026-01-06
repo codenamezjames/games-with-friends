@@ -7,6 +7,7 @@ import { isAdjacent, getWordFromPath } from '@/games/boggle/utils';
 
 interface GridProps {
   onWordSubmit: (word: string, path: number[]) => void;
+  disabled?: boolean;
 }
 
 const CELL_GAP = 8; // gap-2 = 0.5rem = 8px
@@ -19,7 +20,37 @@ function getCellCenter(index: number, cellSize: number, gridSize: number): { x: 
   return { x, y };
 }
 
-export function Grid({ onWordSubmit }: GridProps) {
+// Check if movement direction favors this cell over orthogonal alternatives
+function isDiagonallyAligned(
+  fromIndex: number,
+  toIndex: number,
+  movementAngle: number | null,
+  gridSize: number
+): boolean {
+  if (movementAngle === null) return true; // No movement data, accept any adjacent cell
+
+  const fromRow = Math.floor(fromIndex / gridSize);
+  const fromCol = fromIndex % gridSize;
+  const toRow = Math.floor(toIndex / gridSize);
+  const toCol = toIndex % gridSize;
+
+  const dRow = toRow - fromRow;
+  const dCol = toCol - fromCol;
+
+  // Calculate angle from current cell to target cell
+  // atan2 gives angle in radians, 0 = right, positive = down
+  const cellAngle = Math.atan2(dRow, dCol);
+
+  // Calculate angle difference (handle wrap-around)
+  let angleDiff = Math.abs(cellAngle - movementAngle);
+  if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+
+  // Accept if cell is within 60 degrees of movement direction
+  // This allows some tolerance while still filtering out cells clearly off-path
+  return angleDiff < Math.PI / 3;
+}
+
+export function Grid({ onWordSubmit, disabled = false }: GridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const { grid, gridSize, phase } = useGameStore();
   const {
@@ -33,7 +64,7 @@ export function Grid({ onWordSubmit }: GridProps) {
   } = useLocalGameStore();
   const { play } = useSoundEffects();
 
-  const isDisabled = phase !== 'playing';
+  const isDisabled = phase !== 'playing' || disabled;
 
   const handlePointerDown = useCallback(
     (index: number) => {
@@ -47,8 +78,12 @@ export function Grid({ onWordSubmit }: GridProps) {
   // Track last cell to avoid duplicate processing
   const lastCellRef = useRef<number | null>(null);
 
+  // Track pointer positions for movement direction calculation
+  const pointerHistoryRef = useRef<Array<{ x: number; y: number; time: number }>>([]);
+  const movementAngleRef = useRef<number | null>(null);
+
   const handleCellEnter = useCallback(
-    (index: number) => {
+    (index: number, useMovementFilter: boolean = false) => {
       if (!isTracing || isDisabled) return;
 
       // Backtracking - if we enter a cell that's second-to-last in path, remove last
@@ -63,6 +98,12 @@ export function Grid({ onWordSubmit }: GridProps) {
       // Check adjacency with last cell
       const lastIndex = currentPath[currentPath.length - 1];
       if (isAdjacent(lastIndex, index, gridSize)) {
+        // When using movement filter (touch drag), check if cell aligns with movement direction
+        if (useMovementFilter && movementAngleRef.current !== null) {
+          if (!isDiagonallyAligned(lastIndex, index, movementAngleRef.current, gridSize)) {
+            return; // Skip this cell - it's not in our movement direction
+          }
+        }
         play('tileSelect');
         addToPath(index);
       }
@@ -74,6 +115,27 @@ export function Grid({ onWordSubmit }: GridProps) {
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!isTracing || isDisabled) return;
+
+      const now = Date.now();
+      const pos = { x: e.clientX, y: e.clientY, time: now };
+
+      // Add to history and keep only recent positions (last 100ms)
+      pointerHistoryRef.current.push(pos);
+      pointerHistoryRef.current = pointerHistoryRef.current.filter(p => now - p.time < 100);
+
+      // Calculate movement angle from oldest to newest position
+      if (pointerHistoryRef.current.length >= 2) {
+        const oldest = pointerHistoryRef.current[0];
+        const newest = pointerHistoryRef.current[pointerHistoryRef.current.length - 1];
+        const dx = newest.x - oldest.x;
+        const dy = newest.y - oldest.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Only update angle if we've moved enough to determine direction
+        if (distance > 10) {
+          movementAngleRef.current = Math.atan2(dy, dx);
+        }
+      }
 
       // Get the element under the pointer
       const element = document.elementFromPoint(e.clientX, e.clientY);
@@ -90,15 +152,18 @@ export function Grid({ onWordSubmit }: GridProps) {
       if (index === lastCellRef.current) return;
       lastCellRef.current = index;
 
-      handleCellEnter(index);
+      // Use movement filter for touch/drag to improve diagonal selection
+      handleCellEnter(index, true);
     },
     [isTracing, isDisabled, handleCellEnter]
   );
 
-  // Reset lastCellRef when trace ends
+  // Reset refs when trace ends
   useEffect(() => {
     if (!isTracing) {
       lastCellRef.current = null;
+      pointerHistoryRef.current = [];
+      movementAngleRef.current = null;
     }
   }, [isTracing]);
 

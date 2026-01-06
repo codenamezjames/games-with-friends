@@ -38,7 +38,7 @@ export function GamesIndex() {
   const navigate = useNavigate();
 
   const handleGameSelect = (gameId: string) => {
-    navigate(`/lobby?game=${gameId}`);
+    navigate(`/games/${gameId}`);
   };
 
   return (
