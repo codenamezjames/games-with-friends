@@ -10,7 +10,8 @@ export interface PlayerResult {
   playerId: string;
   name: string;
   score: number;
-  [key: string]: unknown; // Game-specific stats
+  wordCount?: number; // Word Trace specific
+  words?: string[]; // Word Trace specific
 }
 
 export interface GameResults {
@@ -19,7 +20,11 @@ export interface GameResults {
   rankings: PlayerResult[];
 }
 
-// Base game state - games extend this with their own fields
+/**
+ * Serializable game state stored in Firebase.
+ * Currently includes Word Trace specific fields - these can be moved
+ * to a game-specific type when adding new games.
+ */
 export interface SerializableGameState {
   phase: GamePhase;
   startTime: number | null;
@@ -27,7 +32,12 @@ export interface SerializableGameState {
   duration: number;
   scores: Record<string, number>;
   results?: GameResults;
-  [key: string]: unknown; // Game-specific state
+
+  // Word Trace specific fields (TODO: move to WordTraceGameState when adding new games)
+  grid?: string[];
+  gridSize?: number;
+  wordCounts?: Record<string, number>;
+  foundWords?: Record<string, string[]>;
 }
 
 // ============================================================================
@@ -47,7 +57,6 @@ export interface ActionResult {
   playerId: string;
   error?: string;
   stateUpdate?: Partial<SerializableGameState>;
-  [key: string]: unknown; // Game-specific result data
 }
 
 // ============================================================================

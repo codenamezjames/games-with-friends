@@ -172,7 +172,7 @@ export class WordTraceGame {
    * Apply state from Firebase (for restoring state)
    */
   applyState(state: SerializableGameState): void {
-    this.grid = state.grid;
+    this.grid = state.grid ?? [];
     this.gridSize = state.gridSize ?? WordTraceGame.DEFAULT_GRID_SIZE;
     this.timeRemaining = state.timeRemaining;
     this.duration = state.duration;

@@ -288,6 +288,30 @@ export function useRoom() {
     []
   );
 
+  /**
+   * Submit a generic game action.
+   * Used by games to submit player actions (word submissions, card plays, etc.)
+   */
+  const submitAction = useCallback(
+    async (actionType: string, payload: Record<string, unknown>): Promise<void> => {
+      const { roomCode, playerId: currentPlayerId, isSpectator } = useRoomStore.getState();
+      if (!roomCode || !currentPlayerId || isSpectator) return; // Block spectators
+
+      const submissionsRef = ref(db, `rooms/${roomCode}/submissions`);
+      await push(submissionsRef, {
+        type: actionType,
+        playerId: currentPlayerId,
+        payload,
+        timestamp: serverTimestamp(),
+      });
+    },
+    []
+  );
+
+  /**
+   * Submit a word in Word Trace game.
+   * @deprecated Use submitAction('word', { word, path }) instead
+   */
   const submitWord = useCallback(
     async (word: string, path: number[]): Promise<void> => {
       const { roomCode, playerId: currentPlayerId, isSpectator } = useRoomStore.getState();
@@ -384,7 +408,8 @@ export function useRoom() {
     startGame,
     updateGameState,
     updateGameStateFields,
-    submitWord,
+    submitAction,
+    submitWord, // @deprecated - use submitAction instead
     deleteSubmission,
     setRoomStatus,
     transferHost,
