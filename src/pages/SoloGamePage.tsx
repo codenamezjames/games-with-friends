@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Grid } from '@/components/game/wordtrace/Grid';
-import { Feedback } from '@/components/game/wordtrace/Feedback';
-import { WordList } from '@/components/game/wordtrace/WordList';
+import { Grid } from '@/games/wordtrace/components/Grid';
+import { Feedback } from '@/games/wordtrace/components/Feedback';
+import { WordList } from '@/games/wordtrace/components/WordList';
 import { Countdown } from '@/components/common/Countdown';
 import { Button } from '@/components/common/Button';
 import { useGameStore } from '@/stores/useGameStore';

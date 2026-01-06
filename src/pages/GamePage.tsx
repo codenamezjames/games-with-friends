@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ref, onValue, get } from 'firebase/database';
 import { db } from '@/lib/firebase';
-import { WordTraceBoard } from '@/components/game/wordtrace/WordTraceBoard';
+import { WordTraceBoard } from '@/games/wordtrace/components/WordTraceBoard';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
 import { useGameListeners } from '@/hooks/useGameListeners';

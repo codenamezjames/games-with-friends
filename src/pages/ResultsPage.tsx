@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/common/Button';
-import { Confetti } from '@/components/game/wordtrace/Confetti';
-import { ResultsGrid } from '@/components/game/wordtrace/ResultsGrid';
+import { Confetti } from '@/games/wordtrace/components/Confetti';
+import { ResultsGrid } from '@/games/wordtrace/components/ResultsGrid';
 import { prepareWordRevealSequence, getWordPoints, findWordPath } from '@/games/wordtrace/utils';
 import { useGameStore } from '@/stores/useGameStore';
 import { useRoomStore } from '@/stores/useRoomStore';
