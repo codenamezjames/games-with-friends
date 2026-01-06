@@ -8,6 +8,7 @@ import { useGameStore } from '@/stores/useGameStore';
 import { useGameListeners } from '@/hooks/useGameListeners';
 import { useRoom } from '@/hooks/useRoom';
 import { usePresence } from '@/hooks/usePresence';
+import { getGamePaths } from '@/games/registry';
 import type { Player } from '@/types';
 
 // Timeouts for defensive loading
@@ -19,7 +20,7 @@ export function GamePage() {
   const { roomCode: urlRoomCode } = useParams<{ roomCode: string }>();
   const navigate = useNavigate();
   const { roomCode, playerId, setPlayers, setIsHost, resetRoom } = useRoomStore();
-  const { grid, phase, resetGame } = useGameStore();
+  const { grid, phase, resetGame, gameType } = useGameStore();
   const { rejoinRoom, claimHost } = useRoom();
   const [isRejoining, setIsRejoining] = useState(true);
   const [rejoinFailed, setRejoinFailed] = useState(false);
@@ -137,14 +138,16 @@ export function GamePage() {
     }
 
     if (phase === 'lobby' && roomCode) {
-      navigate(`/games/wordtrace/room/${roomCode}`);
+      const paths = getGamePaths(gameType, roomCode);
+      navigate(paths.room);
     }
 
     // Handle finished phase - redirect to results if we somehow missed it
     if (phase === 'finished' && grid.length > 0) {
-      navigate('/games/wordtrace/results');
+      const paths = getGamePaths(gameType);
+      navigate(paths.results);
     }
-  }, [phase, roomCode, grid.length, navigate]);
+  }, [phase, roomCode, grid.length, navigate, gameType]);
 
   // Try to rejoin the room on mount (handles page refresh)
   useEffect(() => {
@@ -201,7 +204,8 @@ export function GamePage() {
             if (roomData?.gameState?.results) {
               // Apply the results state and go to results
               useGameStore.getState().applyStateFromFirebase(roomData.gameState);
-              navigate('/games/wordtrace/results');
+              const paths = getGamePaths(useGameStore.getState().gameType);
+              navigate(paths.results);
             } else {
               resetRoom();
               resetGame();
@@ -216,7 +220,8 @@ export function GamePage() {
             console.log('[GamePage] Room is in waiting state, going to lobby');
             clearTimeout(rejoinTimeout);
             setIsRejoining(false);
-            navigate(`/games/wordtrace/room/${currentRoomCode}`);
+            const paths = getGamePaths(useGameStore.getState().gameType, currentRoomCode);
+            navigate(paths.room);
             return;
           }
 
@@ -326,7 +331,10 @@ export function GamePage() {
         <div className="flex gap-3 mt-4">
           {roomCode && (
             <button
-              onClick={() => navigate(`/games/wordtrace/room/${roomCode}`)}
+              onClick={() => {
+                const paths = getGamePaths(gameType, roomCode);
+                navigate(paths.room);
+              }}
               className="px-4 py-2 bg-bg-cell text-text-primary rounded-lg font-medium hover:bg-bg-cell-hover"
             >
               Back to Lobby

@@ -11,6 +11,7 @@ import { usePresence } from '@/hooks/usePresence';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
 import { generateGrid } from '@/games/wordtrace/utils';
+import { getGamePaths } from '@/games/registry';
 
 const JOIN_TIMEOUT_MS = 10000; // 10 seconds to join/rejoin
 
@@ -19,7 +20,7 @@ export function WaitingRoom() {
   const { roomCode: urlRoomCode } = useParams<{ roomCode: string }>();
   const { leaveRoom, setReady, startGame, updateGameState, rejoinRoom } = useRoom();
   const { roomCode, isHost, players, gameSettings, resetRoom } = useRoomStore();
-  const { setGrid, setGridSize, setDuration, setPhase, setStartTime, setTimeRemaining, resetGame } =
+  const { setGrid, setGridSize, setDuration, setPhase, setStartTime, setTimeRemaining, resetGame, gameType } =
     useGameStore();
 
   const [isStarting, setIsStarting] = useState(false);
@@ -126,7 +127,9 @@ export function WaitingRoom() {
           console.log('[WaitingRoom] Game in progress, redirecting to game');
           clearTimeout(joinTimeout);
           if (!cancelled) {
-            navigate(`/games/wordtrace/play/${targetRoomCode}`);
+            const currentGameType = useGameStore.getState().gameType;
+            const paths = getGamePaths(currentGameType, targetRoomCode);
+            navigate(paths.play);
           }
           return;
         }
@@ -151,7 +154,9 @@ export function WaitingRoom() {
             if (!success) {
               // Rejoin failed - need to join fresh
               console.log('[WaitingRoom] Rejoin failed, redirecting to join page');
-              navigate(`/games/wordtrace?room=${targetRoomCode}`);
+              const currentGameType = useGameStore.getState().gameType;
+              const paths = getGamePaths(currentGameType);
+              navigate(`${paths.lobby}?room=${targetRoomCode}`);
             }
             setIsJoining(false);
           }
@@ -163,7 +168,9 @@ export function WaitingRoom() {
         console.log('[WaitingRoom] Need to join room, redirecting to main menu');
         clearTimeout(joinTimeout);
         if (!cancelled) {
-          navigate(`/games/wordtrace?room=${targetRoomCode}`);
+          const currentGameType = useGameStore.getState().gameType;
+          const paths = getGamePaths(currentGameType);
+          navigate(`${paths.lobby}?room=${targetRoomCode}`);
         }
       } catch (err) {
         clearTimeout(joinTimeout);
@@ -181,10 +188,11 @@ export function WaitingRoom() {
       cancelled = true;
       if (joinTimeout) clearTimeout(joinTimeout);
     };
-  }, [urlRoomCode, rejoinRoom, navigate]);
+  }, [urlRoomCode, rejoinRoom, navigate, gameType]);
 
   // Generate share URL
-  const shareUrl = `${window.location.origin}/games/wordtrace?room=${roomCode || urlRoomCode}`;
+  const gamePaths = getGamePaths(gameType);
+  const shareUrl = `${window.location.origin}${gamePaths.lobby}?room=${roomCode || urlRoomCode}`;
 
   const copyCode = async () => {
     await navigator.clipboard.writeText(roomCode || urlRoomCode || '');

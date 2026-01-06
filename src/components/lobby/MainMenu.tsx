@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/common/Button';
 import { useRoom } from '@/hooks/useRoom';
 import { useRoomStore } from '@/stores/useRoomStore';
+import { getGamePaths } from '@/games/registry';
 
 export function MainMenu() {
   const navigate = useNavigate();
@@ -32,7 +33,8 @@ export function MainMenu() {
 
     try {
       const code = await createRoom(gameType, playerName.trim());
-      navigate(`/games/wordtrace/room/${code}`);
+      const paths = getGamePaths(gameType, code);
+      navigate(paths.room);
     } catch (err) {
       setError((err as Error).message);
       setIsCreating(false);
@@ -56,12 +58,13 @@ export function MainMenu() {
 
     try {
       const result = await joinRoom(codeToJoin, playerName.trim());
+      const paths = getGamePaths(gameType, codeToJoin);
       if (result.isSpectator) {
         // Game in progress - go directly to game as spectator
-        navigate(`/games/wordtrace/play/${codeToJoin}`);
+        navigate(paths.play);
       } else {
         // Normal join - go to lobby
-        navigate(`/games/wordtrace/room/${codeToJoin}`);
+        navigate(paths.room);
       }
     } catch (err) {
       setError((err as Error).message);
@@ -76,7 +79,8 @@ export function MainMenu() {
 
   const handleBackToMenu = () => {
     // Clear the room param and go back to main menu
-    navigate('/games/wordtrace');
+    const paths = getGamePaths(gameType);
+    navigate(paths.lobby);
   };
 
   // Focused join view when user has a room code in URL
@@ -212,7 +216,10 @@ export function MainMenu() {
         <Button
           variant="link"
           className="w-full mt-6"
-          onClick={() => navigate('/games/wordtrace/solo')}
+          onClick={() => {
+            const paths = getGamePaths(gameType);
+            navigate(paths.solo);
+          }}
         >
           Play Solo
         </Button>

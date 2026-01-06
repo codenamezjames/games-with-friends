@@ -13,6 +13,7 @@ import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useRoom } from '@/hooks/useRoom';
 import { useHostSubmissionListener } from '@/hooks/useGameListeners';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { getGamePaths } from '@/games/registry';
 import { WordTraceGame } from '@/games/wordtrace/WordTraceGame';
 import { getWordPoints } from '@/games/wordtrace/utils';
 import { DICTIONARY } from '@/lib/dictionary';
@@ -33,6 +34,7 @@ export function WordTraceBoard() {
     scores,
     wordCounts,
     foundWords,
+    gameType,
     setPhase,
     setTimeRemaining,
     setResults,
@@ -104,8 +106,9 @@ export function WordTraceBoard() {
     await updateGameState(finalState);
 
     // Navigate to results page
-    navigate('/games/wordtrace/results');
-  }, [setPhase, setResults, updateGameState, playSound, navigate]);
+    const paths = getGamePaths(gameType);
+    navigate(paths.results);
+  }, [setPhase, setResults, updateGameState, playSound, navigate, gameType]);
 
   // Handle countdown complete
   const handleCountdownComplete = useCallback(() => {

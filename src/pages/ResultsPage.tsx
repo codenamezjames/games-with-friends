@@ -7,6 +7,7 @@ import { prepareWordRevealSequence, getWordPoints, findWordPath } from '@/games/
 import { useGameStore } from '@/stores/useGameStore';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useRoom } from '@/hooks/useRoom';
+import { getGamePaths } from '@/games/registry';
 
 interface FloatingPoint {
   id: number;
@@ -153,6 +154,7 @@ export function ResultsPage() {
     const currentRoomCode = useRoomStore.getState().roomCode;
     const isTestMode = useGameStore.getState().testMode;
     const isHost = useRoomStore.getState().isHost;
+    const currentGameType = useGameStore.getState().gameType;
     console.log('[ResultsPage] handleRematch called', { currentRoomCode, isTestMode, isHost });
 
     // If host, reset the room status to 'waiting' so players can rejoin the lobby
@@ -167,7 +169,8 @@ export function ResultsPage() {
     if (isTestMode) {
       navigate('/');
     } else if (currentRoomCode) {
-      navigate(`/games/wordtrace/room/${currentRoomCode}`);
+      const paths = getGamePaths(currentGameType, currentRoomCode);
+      navigate(paths.room);
     } else {
       console.warn('[ResultsPage] No roomCode found, navigating home');
       navigate('/');

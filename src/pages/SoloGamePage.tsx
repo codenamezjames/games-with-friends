@@ -10,6 +10,7 @@ import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { generateGrid, getWordPoints } from '@/games/wordtrace/utils';
+import { getGamePaths } from '@/games/registry';
 import { DICTIONARY } from '@/lib/dictionary';
 
 const DEFAULT_DURATION = 120;
@@ -29,6 +30,7 @@ export function SoloGamePage() {
     scores,
     wordCounts,
     foundWords,
+    gameType,
     setGrid,
     setGridSize,
     setDuration,
@@ -176,8 +178,9 @@ export function SoloGamePage() {
     }
     resetGame();
     resetLocalGame();
-    navigate('/games/wordtrace');
-  }, [resetGame, resetLocalGame, navigate]);
+    const paths = getGamePaths(gameType);
+    navigate(paths.lobby);
+  }, [resetGame, resetLocalGame, navigate, gameType]);
 
   // Cleanup on unmount
   useEffect(() => {
