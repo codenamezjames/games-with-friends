@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getWordPoints } from '@/games/boggle/utils';
+import { getWordPoints } from '@/games/wordtrace/utils';
 
 interface WordListProps {
   words: string[];

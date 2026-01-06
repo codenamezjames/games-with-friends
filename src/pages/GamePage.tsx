@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ref, onValue, get } from 'firebase/database';
 import { db } from '@/lib/firebase';
-import { BoggleBoard } from '@/components/game/boggle/BoggleBoard';
+import { WordTraceBoard } from '@/components/game/wordtrace/WordTraceBoard';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
 import { useGameListeners } from '@/hooks/useGameListeners';
@@ -137,12 +137,12 @@ export function GamePage() {
     }
 
     if (phase === 'lobby' && roomCode) {
-      navigate(`/games/boggle/room/${roomCode}`);
+      navigate(`/games/wordtrace/room/${roomCode}`);
     }
 
     // Handle finished phase - redirect to results if we somehow missed it
     if (phase === 'finished' && grid.length > 0) {
-      navigate('/games/boggle/results');
+      navigate('/games/wordtrace/results');
     }
   }, [phase, roomCode, grid.length, navigate]);
 
@@ -201,7 +201,7 @@ export function GamePage() {
             if (roomData?.gameState?.results) {
               // Apply the results state and go to results
               useGameStore.getState().applyStateFromFirebase(roomData.gameState);
-              navigate('/games/boggle/results');
+              navigate('/games/wordtrace/results');
             } else {
               resetRoom();
               resetGame();
@@ -216,7 +216,7 @@ export function GamePage() {
             console.log('[GamePage] Room is in waiting state, going to lobby');
             clearTimeout(rejoinTimeout);
             setIsRejoining(false);
-            navigate(`/games/boggle/room/${currentRoomCode}`);
+            navigate(`/games/wordtrace/room/${currentRoomCode}`);
             return;
           }
 
@@ -326,7 +326,7 @@ export function GamePage() {
         <div className="flex gap-3 mt-4">
           {roomCode && (
             <button
-              onClick={() => navigate(`/games/boggle/room/${roomCode}`)}
+              onClick={() => navigate(`/games/wordtrace/room/${roomCode}`)}
               className="px-4 py-2 bg-bg-cell text-text-primary rounded-lg font-medium hover:bg-bg-cell-hover"
             >
               Back to Lobby
@@ -343,5 +343,5 @@ export function GamePage() {
     );
   }
 
-  return <BoggleBoard />;
+  return <WordTraceBoard />;
 }

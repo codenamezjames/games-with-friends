@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getWordPoints } from '@/games/boggle/utils';
+import { getWordPoints } from '@/games/wordtrace/utils';
 
 interface PlayerPanelProps {
   name: string;

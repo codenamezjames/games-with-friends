@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/common/Button';
-import { Confetti } from '@/components/game/boggle/Confetti';
-import { ResultsGrid } from '@/components/game/boggle/ResultsGrid';
-import { prepareWordRevealSequence, getWordPoints, findWordPath } from '@/games/boggle/utils';
+import { Confetti } from '@/components/game/wordtrace/Confetti';
+import { ResultsGrid } from '@/components/game/wordtrace/ResultsGrid';
+import { prepareWordRevealSequence, getWordPoints, findWordPath } from '@/games/wordtrace/utils';
 import { useGameStore } from '@/stores/useGameStore';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useRoom } from '@/hooks/useRoom';
@@ -34,15 +34,16 @@ export function ResultsPage() {
   const timerRef = useRef<number | null>(null);
   const idCounterRef = useRef(0);
   const speedRef = useRef<Speed>(speed);
+  const isLeavingRef = useRef(false);
 
   // Keep speedRef in sync with speed state
   useEffect(() => {
     speedRef.current = speed;
   }, [speed]);
 
-  // Redirect if no results
+  // Redirect if no results (unless intentionally leaving via Play Again)
   useEffect(() => {
-    if (!results) {
+    if (!results && !isLeavingRef.current) {
       navigate('/');
     }
   }, [results, navigate]);
@@ -159,15 +160,20 @@ export function ResultsPage() {
       await setRoomStatus('waiting');
     }
 
-    resetGame();
+    // Mark as intentionally leaving to prevent redirect effect from firing
+    isLeavingRef.current = true;
+
+    // Navigate to appropriate destination
     if (isTestMode) {
       navigate('/');
     } else if (currentRoomCode) {
-      navigate(`/games/boggle/room/${currentRoomCode}`);
+      navigate(`/games/wordtrace/room/${currentRoomCode}`);
     } else {
       console.warn('[ResultsPage] No roomCode found, navigating home');
       navigate('/');
     }
+
+    resetGame();
   }, [resetGame, navigate, setRoomStatus]);
 
   const handleBackToLobby = useCallback(() => {

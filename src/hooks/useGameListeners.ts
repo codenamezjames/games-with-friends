@@ -45,7 +45,7 @@ export function useGameListeners() {
         if (!isHost && state.phase === 'finished' && !hasNavigatedToResults.current) {
           hasNavigatedToResults.current = true;
           console.log('[useGameListeners] Game finished, navigating to results');
-          navigate('/games/boggle/results');
+          navigate('/games/wordtrace/results');
         }
       },
       (error) => {

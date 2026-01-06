@@ -17,7 +17,7 @@ function TestResultsNavigator() {
 
   useEffect(() => {
     if (testMode && phase === 'finished') {
-      navigate('/games/boggle/results');
+      navigate('/games/wordtrace/results');
     }
   }, [testMode, phase, navigate]);
 
@@ -53,18 +53,19 @@ function AppContent() {
     }>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        {/* Boggle game routes */}
-        <Route path="/games/boggle" element={<LobbyPage />} />
-        <Route path="/games/boggle/room/:roomCode" element={<LobbyPage />} />
-        <Route path="/games/boggle/play/:roomCode" element={<GamePage />} />
-        <Route path="/games/boggle/solo" element={<SoloGamePage />} />
-        <Route path="/games/boggle/results" element={<ResultsPage />} />
+        {/* Word Trace game routes */}
+        <Route path="/games/wordtrace" element={<LobbyPage />} />
+        <Route path="/games/wordtrace/room/:roomCode" element={<LobbyPage />} />
+        <Route path="/games/wordtrace/play/:roomCode" element={<GamePage />} />
+        <Route path="/games/wordtrace/solo" element={<SoloGamePage />} />
+        <Route path="/games/wordtrace/results" element={<ResultsPage />} />
         {/* Legacy redirects */}
-        <Route path="/lobby" element={<Navigate to="/games/boggle" replace />} />
-        <Route path="/lobby/room/:roomCode" element={<Navigate to="/games/boggle" replace />} />
-        <Route path="/game/:roomCode" element={<Navigate to="/games/boggle" replace />} />
-        <Route path="/solo" element={<Navigate to="/games/boggle/solo" replace />} />
-        <Route path="/results" element={<Navigate to="/games/boggle/results" replace />} />
+        <Route path="/lobby" element={<Navigate to="/games/wordtrace" replace />} />
+        <Route path="/lobby/room/:roomCode" element={<Navigate to="/games/wordtrace" replace />} />
+        <Route path="/game/:roomCode" element={<Navigate to="/games/wordtrace" replace />} />
+        <Route path="/solo" element={<Navigate to="/games/wordtrace/solo" replace />} />
+        <Route path="/results" element={<Navigate to="/games/wordtrace/results" replace />} />
+        <Route path="/games/boggle/*" element={<Navigate to="/games/wordtrace" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

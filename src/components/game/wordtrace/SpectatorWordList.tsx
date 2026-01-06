@@ -1,4 +1,4 @@
-import { getWordPoints } from '@/games/boggle/utils';
+import { getWordPoints } from '@/games/wordtrace/utils';
 import type { Player } from '@/types';
 
 interface SpectatorWordListProps {

@@ -10,7 +10,7 @@ import { useRoomListeners } from '@/hooks/useRoomListeners';
 import { usePresence } from '@/hooks/usePresence';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
-import { generateGrid } from '@/games/boggle/utils';
+import { generateGrid } from '@/games/wordtrace/utils';
 
 const JOIN_TIMEOUT_MS = 10000; // 10 seconds to join/rejoin
 
@@ -126,7 +126,7 @@ export function WaitingRoom() {
           console.log('[WaitingRoom] Game in progress, redirecting to game');
           clearTimeout(joinTimeout);
           if (!cancelled) {
-            navigate(`/games/boggle/play/${targetRoomCode}`);
+            navigate(`/games/wordtrace/play/${targetRoomCode}`);
           }
           return;
         }
@@ -151,7 +151,7 @@ export function WaitingRoom() {
             if (!success) {
               // Rejoin failed - need to join fresh
               console.log('[WaitingRoom] Rejoin failed, redirecting to join page');
-              navigate(`/games/boggle?room=${targetRoomCode}`);
+              navigate(`/games/wordtrace?room=${targetRoomCode}`);
             }
             setIsJoining(false);
           }
@@ -163,7 +163,7 @@ export function WaitingRoom() {
         console.log('[WaitingRoom] Need to join room, redirecting to main menu');
         clearTimeout(joinTimeout);
         if (!cancelled) {
-          navigate(`/games/boggle?room=${targetRoomCode}`);
+          navigate(`/games/wordtrace?room=${targetRoomCode}`);
         }
       } catch (err) {
         clearTimeout(joinTimeout);
@@ -184,7 +184,7 @@ export function WaitingRoom() {
   }, [urlRoomCode, rejoinRoom, navigate]);
 
   // Generate share URL
-  const shareUrl = `${window.location.origin}/games/boggle?room=${roomCode || urlRoomCode}`;
+  const shareUrl = `${window.location.origin}/games/wordtrace?room=${roomCode || urlRoomCode}`;
 
   const copyCode = async () => {
     await navigator.clipboard.writeText(roomCode || urlRoomCode || '');

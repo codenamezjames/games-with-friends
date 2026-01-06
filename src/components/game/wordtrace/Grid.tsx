@@ -3,7 +3,7 @@ import { Cell } from './Cell';
 import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useGameStore } from '@/stores/useGameStore';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
-import { isAdjacent, getWordFromPath } from '@/games/boggle/utils';
+import { isAdjacent, getWordFromPath } from '@/games/wordtrace/utils';
 
 interface GridProps {
   onWordSubmit: (word: string, path: number[]) => void;

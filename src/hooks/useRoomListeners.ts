@@ -141,7 +141,7 @@ export function useRoomListeners() {
         // But not if game phase is 'lobby' (returning from game)
         const currentPhase = useGameStore.getState().phase;
         if ((status === 'countdown' || status === 'playing') && currentPhase !== 'lobby') {
-          navigate(`/games/boggle/play/${roomCode}`);
+          navigate(`/games/wordtrace/play/${roomCode}`);
         }
 
         // If room finished and we're still in waiting room, show message

@@ -13,13 +13,13 @@ import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useRoom } from '@/hooks/useRoom';
 import { useHostSubmissionListener } from '@/hooks/useGameListeners';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
-import { BoggleGame } from '@/games/boggle/BoggleGame';
-import { getWordPoints } from '@/games/boggle/utils';
+import { WordTraceGame } from '@/games/wordtrace/WordTraceGame';
+import { getWordPoints } from '@/games/wordtrace/utils';
 import { DICTIONARY } from '@/lib/dictionary';
 
-export function BoggleBoard() {
+export function WordTraceBoard() {
   const navigate = useNavigate();
-  const gameRef = useRef<BoggleGame | null>(null);
+  const gameRef = useRef<WordTraceGame | null>(null);
   const timerRef = useRef<number | null>(null);
   const hasEndedRef = useRef(false);
 
@@ -49,7 +49,7 @@ export function BoggleBoard() {
   // Initialize game instance for host
   useEffect(() => {
     if (isHost && (phase === 'countdown' || phase === 'playing') && !gameRef.current) {
-      gameRef.current = new BoggleGame();
+      gameRef.current = new WordTraceGame();
       const playerData: Record<string, { name: string }> = {};
       Object.entries(players).forEach(([id, p]) => {
         playerData[id] = { name: p.name };
@@ -104,7 +104,7 @@ export function BoggleBoard() {
     await updateGameState(finalState);
 
     // Navigate to results page
-    navigate('/games/boggle/results');
+    navigate('/games/wordtrace/results');
   }, [setPhase, setResults, updateGameState, playSound, navigate]);
 
   // Handle countdown complete
@@ -145,7 +145,7 @@ export function BoggleBoard() {
   useEffect(() => {
     // Clear any existing timer first to prevent duplicates
     if (timerRef.current) {
-      console.log('[BoggleBoard] Clearing existing timer before resume check');
+      console.log('[WordTraceBoard] Clearing existing timer before resume check');
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
@@ -157,7 +157,7 @@ export function BoggleBoard() {
     // 4. We're not showing countdown (meaning we didn't just come from countdown)
     const currentTimeRemaining = useGameStore.getState().timeRemaining;
     if (isHost && phase === 'playing' && currentTimeRemaining > 0 && !showCountdown) {
-      console.log('[BoggleBoard] Starting timer for host, timeRemaining:', currentTimeRemaining);
+      console.log('[WordTraceBoard] Starting timer for host, timeRemaining:', currentTimeRemaining);
 
       timerRef.current = window.setInterval(async () => {
         const newTime = useGameStore.getState().timeRemaining - 1;
@@ -193,7 +193,7 @@ export function BoggleBoard() {
     // Cleanup: clear timer when effect re-runs or component unmounts
     return () => {
       if (timerRef.current) {
-        console.log('[BoggleBoard] Cleanup: clearing timer');
+        console.log('[WordTraceBoard] Cleanup: clearing timer');
         clearInterval(timerRef.current);
         timerRef.current = null;
       }

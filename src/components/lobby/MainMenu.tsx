@@ -8,7 +8,7 @@ export function MainMenu() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const prefillCode = searchParams.get('room')?.toUpperCase() || '';
-  const gameType = searchParams.get('game') || 'boggle';
+  const gameType = searchParams.get('game') || 'wordtrace';
 
   const { createRoom, joinRoom } = useRoom();
   const { playerName, setPlayerName } = useRoomStore();
@@ -32,7 +32,7 @@ export function MainMenu() {
 
     try {
       const code = await createRoom(gameType, playerName.trim());
-      navigate(`/games/boggle/room/${code}`);
+      navigate(`/games/wordtrace/room/${code}`);
     } catch (err) {
       setError((err as Error).message);
       setIsCreating(false);
@@ -58,10 +58,10 @@ export function MainMenu() {
       const result = await joinRoom(codeToJoin, playerName.trim());
       if (result.isSpectator) {
         // Game in progress - go directly to game as spectator
-        navigate(`/games/boggle/play/${codeToJoin}`);
+        navigate(`/games/wordtrace/play/${codeToJoin}`);
       } else {
         // Normal join - go to lobby
-        navigate(`/games/boggle/room/${codeToJoin}`);
+        navigate(`/games/wordtrace/room/${codeToJoin}`);
       }
     } catch (err) {
       setError((err as Error).message);
@@ -76,7 +76,7 @@ export function MainMenu() {
 
   const handleBackToMenu = () => {
     // Clear the room param and go back to main menu
-    navigate('/games/boggle');
+    navigate('/games/wordtrace');
   };
 
   // Focused join view when user has a room code in URL
@@ -212,7 +212,7 @@ export function MainMenu() {
         <Button
           variant="link"
           className="w-full mt-6"
-          onClick={() => navigate('/games/boggle/solo')}
+          onClick={() => navigate('/games/wordtrace/solo')}
         >
           Play Solo
         </Button>

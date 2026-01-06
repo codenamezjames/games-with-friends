@@ -7,7 +7,7 @@ import {
 } from './utils';
 import type { ProcessResult, GameResults, SerializableGameState, GamePhase } from '@/types';
 
-export interface BogglePlayer {
+export interface WordTracePlayer {
   id: string;
   name: string;
   score: number;
@@ -15,11 +15,11 @@ export interface BogglePlayer {
 }
 
 /**
- * BoggleGame - Handles game logic for the host
+ * WordTraceGame - Handles game logic for the host
  * This class is used by the host to validate words and manage game state
  */
-export class BoggleGame {
-  static GAME_ID = 'boggle';
+export class WordTraceGame {
+  static GAME_ID = 'wordtrace';
   static DISPLAY_NAME = 'Word Trace';
   static MIN_PLAYERS = 2;
   static MAX_PLAYERS = 2;
@@ -27,11 +27,11 @@ export class BoggleGame {
   static DEFAULT_GRID_SIZE = 5;
 
   grid: string[] = [];
-  gridSize: number = BoggleGame.DEFAULT_GRID_SIZE;
+  gridSize: number = WordTraceGame.DEFAULT_GRID_SIZE;
   foundWords: Map<string, Set<string>> = new Map();
-  players: Map<string, BogglePlayer> = new Map();
-  timeRemaining: number = BoggleGame.DEFAULT_DURATION;
-  duration: number = BoggleGame.DEFAULT_DURATION;
+  players: Map<string, WordTracePlayer> = new Map();
+  timeRemaining: number = WordTraceGame.DEFAULT_DURATION;
+  duration: number = WordTraceGame.DEFAULT_DURATION;
   phase: GamePhase = 'setup';
   startTime: number | null = null;
 
@@ -40,7 +40,7 @@ export class BoggleGame {
    */
   initialize(playerData: Record<string, { name: string }>): void {
     this.grid = generateGrid();
-    this.timeRemaining = BoggleGame.DEFAULT_DURATION;
+    this.timeRemaining = WordTraceGame.DEFAULT_DURATION;
     this.foundWords.clear();
     this.players.clear();
 
@@ -173,7 +173,7 @@ export class BoggleGame {
    */
   applyState(state: SerializableGameState): void {
     this.grid = state.grid;
-    this.gridSize = state.gridSize ?? BoggleGame.DEFAULT_GRID_SIZE;
+    this.gridSize = state.gridSize ?? WordTraceGame.DEFAULT_GRID_SIZE;
     this.timeRemaining = state.timeRemaining;
     this.duration = state.duration;
     this.phase = state.phase;

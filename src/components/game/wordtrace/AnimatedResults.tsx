@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/common/Button';
 import { WordRevealCard } from './WordRevealCard';
-import { prepareWordRevealSequence, getWordPoints } from '@/games/boggle/utils';
+import { prepareWordRevealSequence, getWordPoints } from '@/games/wordtrace/utils';
 import type { GameResults, Player } from '@/types';
 
 interface AnimatedResultsProps {

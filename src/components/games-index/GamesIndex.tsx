@@ -3,7 +3,7 @@ import { GameCard } from './GameCard';
 
 const GAMES = [
   {
-    id: 'boggle',
+    id: 'wordtrace',
     icon: 'W',
     name: 'Word Trace',
     description:

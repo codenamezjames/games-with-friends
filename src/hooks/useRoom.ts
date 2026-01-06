@@ -16,7 +16,7 @@ import { useRoomStore } from '@/stores/useRoomStore';
 const ROOM_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function generateRoomCode(): string {
-  let code = '';http://localhost:5173/games/boggle
+  let code = '';
   for (let i = 0; i < 6; i++) {
     code += ROOM_CODE_CHARS[Math.floor(Math.random() * ROOM_CODE_CHARS.length)];
   }
@@ -353,12 +353,25 @@ export function useRoom() {
 
     const roomRef = ref(db, `rooms/${roomCode}`);
 
-    // Update metadata.hostId and our player host flag
-    await update(roomRef, {
+    // First, get the current host to clear their isHost flag
+    const snapshot = await get(roomRef);
+    if (!snapshot.exists()) return;
+
+    const roomData = snapshot.val();
+    const oldHostId = roomData.metadata?.hostId;
+
+    // Build updates: set new host, clear old host's flag
+    const updates: Record<string, unknown> = {
       'metadata/hostId': currentPlayerId,
       [`players/${currentPlayerId}/isHost`]: true,
-    });
+    };
 
+    // Clear old host's isHost flag if they exist and are different
+    if (oldHostId && oldHostId !== currentPlayerId && roomData.players?.[oldHostId]) {
+      updates[`players/${oldHostId}/isHost`] = false;
+    }
+
+    await update(roomRef, updates);
     setIsHost(true);
   }, [setIsHost]);
 

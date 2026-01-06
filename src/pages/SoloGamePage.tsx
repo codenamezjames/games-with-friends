@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Grid } from '@/components/game/boggle/Grid';
-import { Feedback } from '@/components/game/boggle/Feedback';
-import { WordList } from '@/components/game/boggle/WordList';
+import { Grid } from '@/components/game/wordtrace/Grid';
+import { Feedback } from '@/components/game/wordtrace/Feedback';
+import { WordList } from '@/components/game/wordtrace/WordList';
 import { Countdown } from '@/components/common/Countdown';
 import { Button } from '@/components/common/Button';
 import { useGameStore } from '@/stores/useGameStore';
 import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
-import { generateGrid, getWordPoints } from '@/games/boggle/utils';
+import { generateGrid, getWordPoints } from '@/games/wordtrace/utils';
 import { DICTIONARY } from '@/lib/dictionary';
 
 const DEFAULT_DURATION = 120;
@@ -176,7 +176,7 @@ export function SoloGamePage() {
     }
     resetGame();
     resetLocalGame();
-    navigate('/games/boggle');
+    navigate('/games/wordtrace');
   }, [resetGame, resetLocalGame, navigate]);
 
   // Cleanup on unmount
