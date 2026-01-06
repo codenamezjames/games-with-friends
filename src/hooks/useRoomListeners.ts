@@ -100,11 +100,13 @@ export function useRoomListeners() {
             hostTransferTimerRef.current = null;
           }
 
-          // Update our local isHost state if we became host
-          if (playerId && players[playerId]?.isHost) {
+          // Update our local isHost state based on Firebase data
+          if (playerId) {
+            const isHostInFirebase = players[playerId]?.isHost === true;
             const currentIsHost = useRoomStore.getState().isHost;
-            if (!currentIsHost) {
-              setIsHost(true);
+            if (isHostInFirebase !== currentIsHost) {
+              console.log('[useRoomListeners] Updating isHost from', currentIsHost, 'to', isHostInFirebase);
+              setIsHost(isHostInFirebase);
             }
           }
         }

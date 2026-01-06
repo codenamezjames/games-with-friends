@@ -43,7 +43,9 @@ export function useGameListeners() {
         }
 
         // Navigate to results when game finishes (for guests) - only once
-        if (!isHost && state.phase === 'finished' && !hasNavigatedToResults.current) {
+        // But don't navigate if room status is 'waiting' (someone clicked Play Again)
+        const roomStatus = useRoomStore.getState().roomStatus;
+        if (!isHost && state.phase === 'finished' && !hasNavigatedToResults.current && roomStatus !== 'waiting') {
           hasNavigatedToResults.current = true;
           const paths = getGamePaths(gameType);
           console.log('[useGameListeners] Game finished, navigating to results');

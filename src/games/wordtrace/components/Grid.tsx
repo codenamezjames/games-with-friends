@@ -20,34 +20,77 @@ function getCellCenter(index: number, cellSize: number, gridSize: number): { x: 
   return { x, y };
 }
 
-// Check if movement direction favors this cell over orthogonal alternatives
-function isDiagonallyAligned(
+// Calculate angle difference between two angles (handles wrap-around)
+function getAngleDiff(angle1: number, angle2: number): number {
+  let diff = Math.abs(angle1 - angle2);
+  if (diff > Math.PI) diff = 2 * Math.PI - diff;
+  return diff;
+}
+
+// Find the best adjacent cell based on movement direction
+function findBestAdjacentCell(
   fromIndex: number,
-  toIndex: number,
+  targetIndex: number,
   movementAngle: number | null,
-  gridSize: number
-): boolean {
-  if (movementAngle === null) return true; // No movement data, accept any adjacent cell
+  gridSize: number,
+  currentPath: number[]
+): number | null {
+  // If no movement angle data, accept the target if it's adjacent
+  if (movementAngle === null) return targetIndex;
 
   const fromRow = Math.floor(fromIndex / gridSize);
   const fromCol = fromIndex % gridSize;
-  const toRow = Math.floor(toIndex / gridSize);
-  const toCol = toIndex % gridSize;
 
-  const dRow = toRow - fromRow;
-  const dCol = toCol - fromCol;
+  // Get all 8 adjacent cells
+  const adjacentCells: Array<{ index: number; angle: number; isDiagonal: boolean }> = [];
+  for (let dRow = -1; dRow <= 1; dRow++) {
+    for (let dCol = -1; dCol <= 1; dCol++) {
+      if (dRow === 0 && dCol === 0) continue;
+      const newRow = fromRow + dRow;
+      const newCol = fromCol + dCol;
+      if (newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize) {
+        const index = newRow * gridSize + newCol;
+        // Skip cells already in path
+        if (currentPath.includes(index)) continue;
+        const angle = Math.atan2(dRow, dCol);
+        const isDiagonal = dRow !== 0 && dCol !== 0;
+        adjacentCells.push({ index, angle, isDiagonal });
+      }
+    }
+  }
 
-  // Calculate angle from current cell to target cell
-  // atan2 gives angle in radians, 0 = right, positive = down
-  const cellAngle = Math.atan2(dRow, dCol);
+  if (adjacentCells.length === 0) return null;
 
-  // Calculate angle difference (handle wrap-around)
-  let angleDiff = Math.abs(cellAngle - movementAngle);
-  if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+  // Find the cell with the smallest angle difference to movement direction
+  let bestCell = adjacentCells[0];
+  let bestAngleDiff = getAngleDiff(bestCell.angle, movementAngle);
 
-  // Accept if cell is within 60 degrees of movement direction
-  // This allows some tolerance while still filtering out cells clearly off-path
-  return angleDiff < Math.PI / 3;
+  for (const cell of adjacentCells) {
+    const angleDiff = getAngleDiff(cell.angle, movementAngle);
+    // Prefer this cell if it has a smaller angle difference,
+    // OR if angle difference is similar but this cell is what the user touched
+    if (angleDiff < bestAngleDiff - 0.1 || (Math.abs(angleDiff - bestAngleDiff) < 0.2 && cell.index === targetIndex)) {
+      bestCell = cell;
+      bestAngleDiff = angleDiff;
+    }
+  }
+
+  // Only return the best cell if it's reasonably aligned (within 45 degrees)
+  if (bestAngleDiff < Math.PI / 4) {
+    return bestCell.index;
+  }
+
+  // Fall back to target if it's adjacent and within a looser threshold
+  const targetRow = Math.floor(targetIndex / gridSize);
+  const targetCol = targetIndex % gridSize;
+  const targetAngle = Math.atan2(targetRow - fromRow, targetCol - fromCol);
+  const targetAngleDiff = getAngleDiff(targetAngle, movementAngle);
+
+  if (targetAngleDiff < Math.PI / 2 && !currentPath.includes(targetIndex)) {
+    return targetIndex;
+  }
+
+  return null;
 }
 
 export function Grid({ onWordSubmit, disabled = false }: GridProps) {
@@ -97,13 +140,19 @@ export function Grid({ onWordSubmit, disabled = false }: GridProps) {
 
       // Check adjacency with last cell
       const lastIndex = currentPath[currentPath.length - 1];
-      if (isAdjacent(lastIndex, index, gridSize)) {
-        // When using movement filter (touch drag), check if cell aligns with movement direction
-        if (useMovementFilter && movementAngleRef.current !== null) {
-          if (!isDiagonallyAligned(lastIndex, index, movementAngleRef.current, gridSize)) {
-            return; // Skip this cell - it's not in our movement direction
-          }
+
+      // When using movement filter (touch drag), find the best cell based on movement direction
+      if (useMovementFilter && movementAngleRef.current !== null) {
+        const bestIndex = findBestAdjacentCell(lastIndex, index, movementAngleRef.current, gridSize, currentPath);
+        if (bestIndex !== null && !currentPath.includes(bestIndex)) {
+          play('tileSelect');
+          addToPath(bestIndex);
         }
+        return;
+      }
+
+      // Normal adjacency check for mouse hover
+      if (isAdjacent(lastIndex, index, gridSize)) {
         play('tileSelect');
         addToPath(index);
       }
