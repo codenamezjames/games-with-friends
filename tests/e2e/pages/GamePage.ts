@@ -9,21 +9,25 @@ export class GamePage extends BasePage {
   readonly timer: Locator;
   readonly grid: Locator;
   readonly cells: Locator;
-  readonly wordList: Locator;
   readonly playerScores: Locator;
-  readonly feedback: Locator;
+  readonly feedbackSuccess: Locator;
+  readonly feedbackError: Locator;
   readonly countdown: Locator;
+  readonly currentWord: Locator;
+  readonly header: Locator;
 
   constructor(page: Page) {
     super(page);
 
-    this.timer = page.locator('.font-mono.font-bold').first();
-    this.grid = page.locator('[class*="grid"]').first();
-    this.cells = page.locator('[class*="cell"], [class*="Cell"]');
-    this.wordList = page.locator('[class*="word"]');
-    this.playerScores = page.locator('[class*="score"], [class*="Score"]');
-    this.feedback = page.locator('[class*="feedback"], [class*="Feedback"]');
-    this.countdown = page.locator('[class*="countdown"], [class*="Countdown"]');
+    this.timer = page.locator('.font-mono.font-bold.text-4xl');
+    this.grid = page.locator('.grid.gap-2');
+    this.cells = page.locator('[data-index]');
+    this.playerScores = page.locator('[class*="player"]');
+    this.feedbackSuccess = page.locator('.text-lg.font-semibold.text-success');
+    this.feedbackError = page.locator('.text-lg.font-semibold.text-error');
+    this.countdown = page.locator('.fixed.inset-0'); // Countdown overlay
+    this.currentWord = page.locator('.text-accent.tracking-wider');
+    this.header = page.getByRole('heading', { name: 'Word Trace' });
   }
 
   /**
@@ -34,7 +38,7 @@ export class GamePage extends BasePage {
   }
 
   /**
-   * Get the current time remaining.
+   * Get the current time remaining as displayed text.
    */
   async getTimeRemaining(): Promise<string> {
     return this.getTextContent(this.timer);
@@ -48,6 +52,14 @@ export class GamePage extends BasePage {
     const match = text.match(/(\d+):(\d+)/);
     if (!match) return 0;
     return parseInt(match[1]) * 60 + parseInt(match[2]);
+  }
+
+  /**
+   * Wait for timer to show a specific format.
+   */
+  async expectTimerVisible() {
+    await expect(this.timer).toBeVisible();
+    await expect(this.timer).toHaveText(/\d+:\d{2}/);
   }
 
   /**
@@ -66,13 +78,20 @@ export class GamePage extends BasePage {
   }
 
   /**
+   * Get a specific cell by its index.
+   */
+  getCell(index: number): Locator {
+    return this.page.locator(`[data-index="${index}"]`);
+  }
+
+  /**
    * Trace a word by clicking/dragging through cells.
    * @param indices Array of cell indices to trace through
    */
   async traceWord(indices: number[]) {
     if (indices.length === 0) return;
 
-    const firstCell = this.cells.nth(indices[0]);
+    const firstCell = this.getCell(indices[0]);
     const box = await firstCell.boundingBox();
     if (!box) throw new Error('Could not get cell bounding box');
 
@@ -82,7 +101,7 @@ export class GamePage extends BasePage {
 
     // Move through remaining cells
     for (let i = 1; i < indices.length; i++) {
-      const cell = this.cells.nth(indices[i]);
+      const cell = this.getCell(indices[i]);
       const cellBox = await cell.boundingBox();
       if (!cellBox) continue;
       await this.page.mouse.move(
@@ -96,66 +115,87 @@ export class GamePage extends BasePage {
   }
 
   /**
-   * Get the feedback message.
+   * Get the current word being traced.
    */
-  async getFeedback(): Promise<string> {
+  async getCurrentWord(): Promise<string> {
+    return this.getTextContent(this.currentWord);
+  }
+
+  /**
+   * Wait for success feedback.
+   */
+  async expectSuccessFeedback(timeout = 3000) {
+    await expect(this.feedbackSuccess).toBeVisible({ timeout });
+  }
+
+  /**
+   * Wait for error feedback.
+   */
+  async expectErrorFeedback(timeout = 3000) {
+    await expect(this.feedbackError).toBeVisible({ timeout });
+  }
+
+  /**
+   * Get success feedback message.
+   */
+  async getSuccessFeedback(): Promise<string> {
     try {
-      await this.feedback.waitFor({ state: 'visible', timeout: 2000 });
-      return this.getTextContent(this.feedback);
+      await this.feedbackSuccess.waitFor({ state: 'visible', timeout: 2000 });
+      return this.getTextContent(this.feedbackSuccess);
     } catch {
       return '';
     }
   }
 
   /**
-   * Wait for feedback message to appear.
+   * Get error feedback message.
    */
-  async waitForFeedback(expectedText?: string | RegExp, timeout = 5000) {
-    await this.feedback.waitFor({ state: 'visible', timeout });
-    if (expectedText) {
-      await expect(this.feedback).toHaveText(expectedText);
+  async getErrorFeedback(): Promise<string> {
+    try {
+      await this.feedbackError.waitFor({ state: 'visible', timeout: 2000 });
+      return this.getTextContent(this.feedbackError);
+    } catch {
+      return '';
     }
   }
 
   /**
-   * Get list of found words.
-   */
-  async getFoundWords(): Promise<string[]> {
-    const wordElements = this.page.locator('[class*="word-item"], [class*="WordItem"]');
-    const count = await wordElements.count();
-    const words: string[] = [];
-
-    for (let i = 0; i < count; i++) {
-      const text = await wordElements.nth(i).textContent();
-      if (text) words.push(text.trim().toLowerCase());
-    }
-
-    return words;
-  }
-
-  /**
-   * Wait for countdown to finish.
+   * Wait for countdown to complete.
    */
   async waitForCountdownComplete(timeout = 5000) {
+    // Wait for countdown to appear then disappear
+    try {
+      await this.countdown.waitFor({ state: 'visible', timeout: 2000 });
+    } catch {
+      // Countdown might have already completed
+    }
     await this.countdown.waitFor({ state: 'hidden', timeout });
   }
 
   /**
-   * Wait for game to start (countdown finished).
+   * Wait for game to start (countdown finished, grid active).
    */
   async waitForGameStart(timeout = 10000) {
-    // Wait for grid to be interactive
+    // Wait for grid cells to be visible and not disabled
     await this.cells.first().waitFor({ state: 'visible', timeout });
-    // Ensure countdown is done
+    // Wait until cells are not disabled (opacity-50)
+    await expect(this.cells.first()).not.toHaveClass(/opacity-50/, { timeout });
+  }
+
+  /**
+   * Check if game is in playing state (cells not disabled).
+   */
+  async isPlaying(): Promise<boolean> {
     try {
-      await this.countdown.waitFor({ state: 'hidden', timeout: 5000 });
+      const firstCellClass = await this.cells.first().getAttribute('class');
+      return !firstCellClass?.includes('opacity-50');
     } catch {
-      // Countdown may already be hidden
+      return false;
     }
   }
 
   /**
-   * Wait for game to end.
+   * Wait for game to end (navigation to results).
    */
   async waitForGameEnd(timeout = 180000) {
     await this.page.waitForURL(/\/games\/wordtrace\/results/, { timeout });
@@ -165,7 +205,18 @@ export class GamePage extends BasePage {
    * Verify game page is displayed.
    */
   async expectVisible() {
-    await expect(this.grid).toBeVisible();
+    await expect(this.header).toBeVisible();
     await expect(this.timer).toBeVisible();
+    await expect(this.grid).toBeVisible();
+  }
+
+  /**
+   * Get the score for a player by name.
+   */
+  async getPlayerScore(playerName: string): Promise<number> {
+    // Find player row and get their score
+    const playerRow = this.page.locator('li').filter({ hasText: playerName });
+    const scoreText = await playerRow.locator('.font-bold').first().textContent();
+    return parseInt(scoreText?.replace(/[^\d]/g, '') || '0');
   }
 }
