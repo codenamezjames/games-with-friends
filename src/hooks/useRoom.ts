@@ -131,7 +131,7 @@ export function useRoom() {
       await set(playerRef, {
         name: playerName,
         isHost: false,
-        isReady: !isSpectator, // Spectators start not ready, regular players need to ready up
+        isReady: false, // Players need to ready up (spectators also start not ready)
         joinedAt: serverTimestamp(),
         isSpectator,
         isConnected: true,
