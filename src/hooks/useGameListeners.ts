@@ -4,12 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '@/lib/firebase';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
+import { getGamePaths } from '@/games/registry';
 import type { SerializableGameState, WordSubmission } from '@/types';
 
 export function useGameListeners() {
   const navigate = useNavigate();
   const { roomCode, isHost } = useRoomStore();
-  const { applyStateFromFirebase } = useGameStore();
+  const { applyStateFromFirebase, gameType } = useGameStore();
   const hasLoadedInitialState = useRef(false);
   const hasNavigatedToResults = useRef(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -44,8 +45,9 @@ export function useGameListeners() {
         // Navigate to results when game finishes (for guests) - only once
         if (!isHost && state.phase === 'finished' && !hasNavigatedToResults.current) {
           hasNavigatedToResults.current = true;
+          const paths = getGamePaths(gameType);
           console.log('[useGameListeners] Game finished, navigating to results');
-          navigate('/games/wordtrace/results');
+          navigate(paths.results);
         }
       },
       (error) => {
@@ -57,7 +59,7 @@ export function useGameListeners() {
     return () => {
       unsubGameState();
     };
-  }, [roomCode, isHost, applyStateFromFirebase, navigate]);
+  }, [roomCode, isHost, applyStateFromFirebase, navigate, gameType]);
 
   return { connectionError };
 }

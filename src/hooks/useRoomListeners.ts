@@ -5,6 +5,7 @@ import { db } from '@/lib/firebase';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
 import { useRoom } from '@/hooks/useRoom';
+import { getGamePaths } from '@/games/registry';
 import type { Player, RoomStatus } from '@/types';
 
 const HOST_TRANSFER_DELAY_MS = 5000; // 5 seconds grace period
@@ -12,7 +13,7 @@ const HOST_TRANSFER_DELAY_MS = 5000; // 5 seconds grace period
 export function useRoomListeners() {
   const navigate = useNavigate();
   const { roomCode, playerId, setPlayers, setRoomStatus, resetRoom, setIsHost } = useRoomStore();
-  const { resetGame } = useGameStore();
+  const { resetGame, gameType } = useGameStore();
   const { claimHost } = useRoom();
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const hostTransferTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -141,7 +142,8 @@ export function useRoomListeners() {
         // But not if game phase is 'lobby' (returning from game)
         const currentPhase = useGameStore.getState().phase;
         if ((status === 'countdown' || status === 'playing') && currentPhase !== 'lobby') {
-          navigate(`/games/wordtrace/play/${roomCode}`);
+          const paths = getGamePaths(gameType, roomCode);
+          navigate(paths.play);
         }
 
         // If room finished and we're still in waiting room, show message
@@ -165,7 +167,7 @@ export function useRoomListeners() {
         hostTransferTimerRef.current = null;
       }
     };
-  }, [roomCode, playerId, setPlayers, setRoomStatus, resetRoom, resetGame, navigate, shouldBecomeHost, claimHost, setIsHost]);
+  }, [roomCode, playerId, setPlayers, setRoomStatus, resetRoom, resetGame, navigate, shouldBecomeHost, claimHost, setIsHost, gameType]);
 
   return { connectionError };
 }

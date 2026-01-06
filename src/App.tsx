@@ -17,15 +17,14 @@ const ResultsPage = lazy(() => import('@/pages/ResultsPage').then(m => ({ defaul
 // Auto-navigate to results page when testMode is triggered
 function TestResultsNavigator() {
   const navigate = useNavigate();
-  const { phase, testMode } = useGameStore();
+  const { phase, testMode, gameType } = useGameStore();
 
   useEffect(() => {
     if (testMode && phase === 'finished') {
-      // TODO: Get gameType from store once implemented
-      const paths = getGamePaths('wordtrace');
+      const paths = getGamePaths(gameType);
       navigate(paths.results);
     }
-  }, [testMode, phase, navigate]);
+  }, [testMode, phase, gameType, navigate]);
 
   return null;
 }

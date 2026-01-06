@@ -3,6 +3,7 @@ import type { GamePhase, GameResults, SerializableGameState } from '@/types';
 
 interface GameState {
   // State
+  gameType: string; // Current game type (e.g., 'wordtrace')
   phase: GamePhase;
   startTime: number | null;
   grid: string[];
@@ -16,6 +17,7 @@ interface GameState {
   testMode: boolean;
 
   // Actions
+  setGameType: (gameType: string) => void;
   setPhase: (phase: GamePhase) => void;
   setStartTime: (time: number | null) => void;
   setGrid: (grid: string[]) => void;
@@ -30,6 +32,7 @@ interface GameState {
 }
 
 const initialState = {
+  gameType: 'wordtrace', // Default game type
   phase: 'setup' as GamePhase,
   startTime: null,
   grid: [],
@@ -46,6 +49,7 @@ const initialState = {
 export const useGameStore = create<GameState>((set) => ({
   ...initialState,
 
+  setGameType: (gameType) => set({ gameType }),
   setPhase: (phase) => set({ phase }),
   setStartTime: (time) => set({ startTime: time }),
   setGrid: (grid) => set({ grid }),
