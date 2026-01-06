@@ -13,6 +13,7 @@ interface GameState {
   wordCounts: Record<string, number>;
   foundWords: Record<string, string[]>;
   results: GameResults | null;
+  testMode: boolean;
 
   // Actions
   setPhase: (phase: GamePhase) => void;
@@ -39,6 +40,7 @@ const initialState = {
   wordCounts: {},
   foundWords: {},
   results: null,
+  testMode: false,
 };
 
 export const useGameStore = create<GameState>((set) => ({

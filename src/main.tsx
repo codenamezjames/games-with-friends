@@ -100,6 +100,7 @@ window.testResults = (options = {}) => {
     results: { winner, isTie, rankings },
     scores: Object.fromEntries(rankings.map(r => [r.playerId, r.score])),
     wordCounts: Object.fromEntries(rankings.map(r => [r.playerId, r.wordCount])),
+    testMode: true,
   });
 
   console.log('Test results loaded!', { playerCount, wordCount, foundWords, rankings });
