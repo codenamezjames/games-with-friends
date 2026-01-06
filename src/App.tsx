@@ -1,48 +1,27 @@
-import React, { lazy, Suspense, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { useGameStore } from '@/stores/useGameStore';
-import { useRoomStore } from '@/stores/useRoomStore';
-import { AnimatedResults } from '@/components/game/boggle/AnimatedResults';
-import { ResultsModal } from '@/components/game/boggle/ResultsModal';
 
 // Lazy load page components for code splitting
 const HomePage = lazy(() => import('@/pages/HomePage').then(m => ({ default: m.HomePage })));
 const LobbyPage = lazy(() => import('@/pages/LobbyPage').then(m => ({ default: m.LobbyPage })));
 const GamePage = lazy(() => import('@/pages/GamePage').then(m => ({ default: m.GamePage })));
 const SoloGamePage = lazy(() => import('@/pages/SoloGamePage').then(m => ({ default: m.SoloGamePage })));
+const ResultsPage = lazy(() => import('@/pages/ResultsPage').then(m => ({ default: m.ResultsPage })));
 
-// Test overlay for debugging animated results
-function TestResultsOverlay() {
-  const { phase, results, foundWords, testMode, resetGame } = useGameStore();
-  const { players, playerId } = useRoomStore();
-  const [showAnimated, setShowAnimated] = useState(true);
+// Auto-navigate to results page when testMode is triggered
+function TestResultsNavigator() {
+  const navigate = useNavigate();
+  const { phase, testMode } = useGameStore();
 
-  if (!testMode || phase !== 'finished' || !results || !playerId) return null;
+  useEffect(() => {
+    if (testMode && phase === 'finished') {
+      navigate('/results');
+    }
+  }, [testMode, phase, navigate]);
 
-  const handleClose = () => {
-    resetGame();
-    useGameStore.setState({ testMode: false });
-  };
-
-  return showAnimated ? (
-    <AnimatedResults
-      results={results}
-      foundWords={foundWords}
-      players={players}
-      localPlayerId={playerId}
-      onAnimationComplete={() => setShowAnimated(false)}
-      onRematch={handleClose}
-      onBackToLobby={handleClose}
-    />
-  ) : (
-    <ResultsModal
-      results={results}
-      localPlayerId={playerId}
-      onRematch={handleClose}
-      onBackToLobby={handleClose}
-    />
-  );
+  return null;
 }
 
 function AppContent() {
@@ -78,6 +57,7 @@ function AppContent() {
         <Route path="/lobby/room/:roomCode" element={<LobbyPage />} />
         <Route path="/game/:roomCode" element={<GamePage />} />
         <Route path="/solo" element={<SoloGamePage />} />
+        <Route path="/results" element={<ResultsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
@@ -88,7 +68,7 @@ function App() {
   return (
     <BrowserRouter>
       <AppContent />
-      <TestResultsOverlay />
+      <TestResultsNavigator />
     </BrowserRouter>
   );
 }

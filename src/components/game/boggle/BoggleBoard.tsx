@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ref, update } from 'firebase/database';
-import { db } from '@/lib/firebase';
 import { Grid } from './Grid';
 import { GamePlayerList } from './GamePlayerList';
 import { WordList } from './WordList';
 import { SpectatorBanner } from './SpectatorBanner';
 import { SpectatorWordList } from './SpectatorWordList';
 import { Feedback } from './Feedback';
-import { ResultsModal } from './ResultsModal';
-import { AnimatedResults } from './AnimatedResults';
 import { Countdown } from '@/components/common/Countdown';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
@@ -18,7 +14,7 @@ import { useRoom } from '@/hooks/useRoom';
 import { useHostSubmissionListener } from '@/hooks/useGameListeners';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { BoggleGame } from '@/games/boggle/BoggleGame';
-import { getWordPoints, generateGrid } from '@/games/boggle/utils';
+import { getWordPoints } from '@/games/boggle/utils';
 import { DICTIONARY } from '@/lib/dictionary';
 
 export function BoggleBoard() {
@@ -26,7 +22,7 @@ export function BoggleBoard() {
   const gameRef = useRef<BoggleGame | null>(null);
   const timerRef = useRef<number | null>(null);
 
-  const { playerId, isHost, isSpectator, setIsSpectator, players, gameSettings, roomCode } = useRoomStore();
+  const { playerId, isHost, isSpectator, players } = useRoomStore();
   const {
     phase,
     startTime,
@@ -36,21 +32,18 @@ export function BoggleBoard() {
     scores,
     wordCounts,
     foundWords,
-    results,
     setPhase,
     setTimeRemaining,
     setResults,
     updatePlayerScore,
     addFoundWord,
-    resetGame,
   } = useGameStore();
-  const { setFeedback, reset: resetLocalGame } = useLocalGameStore();
-  const { updateGameState, updateGameStateFields, submitWord, deleteSubmission, setRoomStatus } =
+  const { setFeedback } = useLocalGameStore();
+  const { updateGameState, updateGameStateFields, submitWord, deleteSubmission } =
     useRoom();
   const { play: playSound } = useSoundEffects();
 
   const [showCountdown, setShowCountdown] = useState(false);
-  const [showAnimatedResults, setShowAnimatedResults] = useState(true);
 
   // Initialize game instance for host
   useEffect(() => {
@@ -107,7 +100,10 @@ export function BoggleBoard() {
     finalState.phase = 'finished';
     finalState.results = gameResults;
     await updateGameState(finalState);
-  }, [setPhase, setResults, updateGameState, playSound]);
+
+    // Navigate to results page
+    navigate('/results');
+  }, [setPhase, setResults, updateGameState, playSound, navigate]);
 
   // Handle countdown complete
   const handleCountdownComplete = useCallback(() => {
@@ -286,81 +282,6 @@ export function BoggleBoard() {
 
   useHostSubmissionListener(handleSubmissionReceived);
 
-  // Handle rematch
-  const handleRematch = useCallback(async () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    gameRef.current = null;
-    resetGame();
-    resetLocalGame();
-
-    // Reset for next game
-    setIsSpectator(false);
-    setShowAnimatedResults(true);
-
-    if (isHost && roomCode) {
-      // Use settings for new game
-      const { duration, gridSize } = gameSettings;
-
-      // Clear spectator flags for all players in Firebase
-      const spectatorUpdates: Record<string, boolean | null> = {};
-      Object.keys(players).forEach((pid) => {
-        spectatorUpdates[`players/${pid}/isSpectator`] = null;
-      });
-      await update(ref(db, `rooms/${roomCode}`), spectatorUpdates);
-
-      // Create new game state with ALL players (including former spectators)
-      const newGame = new BoggleGame();
-      const playerData: Record<string, { name: string }> = {};
-      Object.entries(players).forEach(([id, p]) => {
-        playerData[id] = { name: p.name };
-      });
-      newGame.initialize(playerData);
-
-      // Set grid and settings
-      newGame.grid = generateGrid(gridSize);
-      newGame.gridSize = gridSize;
-      newGame.duration = duration;
-      newGame.timeRemaining = duration;
-      newGame.phase = 'countdown';
-      newGame.startTime = Date.now() + 3000;
-      gameRef.current = newGame;
-
-      const state = newGame.getSerializableState();
-
-      // Apply state locally for host (don't rely on Firebase sync)
-      useGameStore.getState().applyStateFromFirebase(state);
-
-      await updateGameState(state);
-    }
-  }, [isHost, roomCode, players, gameSettings, resetGame, resetLocalGame, setIsSpectator, updateGameState]);
-
-  // Handle back to lobby - return to waiting room with same room code
-  const handleBackToLobby = useCallback(async () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    gameRef.current = null;
-    resetGame();
-    resetLocalGame();
-
-    // If host, signal to Firebase that we're going back to lobby
-    if (isHost && roomCode) {
-      await setRoomStatus('waiting');
-      await updateGameStateFields({ phase: 'lobby' });
-    }
-
-    // Navigate back to waiting room
-    if (roomCode) {
-      navigate(`/lobby/room/${roomCode}`);
-    } else {
-      navigate('/');
-    }
-  }, [resetGame, resetLocalGame, navigate, isHost, roomCode, setRoomStatus, updateGameStateFields]);
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -429,29 +350,6 @@ export function BoggleBoard() {
         )}
       </main>
 
-      {/* Results - Animated then Modal */}
-      {phase === 'finished' && results && playerId && (
-        showAnimatedResults ? (
-          <AnimatedResults
-            results={results}
-            foundWords={foundWords}
-            players={players}
-            localPlayerId={playerId}
-            isSpectator={isSpectator}
-            onAnimationComplete={() => setShowAnimatedResults(false)}
-            onRematch={handleRematch}
-            onBackToLobby={handleBackToLobby}
-          />
-        ) : (
-          <ResultsModal
-            results={results}
-            localPlayerId={playerId}
-            isSpectator={isSpectator}
-            onRematch={handleRematch}
-            onBackToLobby={handleBackToLobby}
-          />
-        )
-      )}
     </div>
   );
 }

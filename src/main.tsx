@@ -5,7 +5,7 @@ import App from './App.tsx'
 import { useGameStore } from './stores/useGameStore'
 import { useRoomStore } from './stores/useRoomStore'
 
-const VERSION = '1.4.2';
+const VERSION = '1.5.0';
 console.log(`[Word Trace] v${VERSION}`);
 
 // Debug function to test animated results screen
