@@ -131,12 +131,9 @@ test.describe('Solo Mode Gameplay', () => {
 });
 
 test.describe('Solo Mode Results', () => {
-  // Skip in CI - these tests require full game completion (2 min)
-  test.skip(!!process.env.CI, 'Skipping long-running tests in CI');
-
+  // Uses 10s test duration on localhost
   test('results modal appears when game ends', async ({ page }) => {
-    // This test waits for full 2 min game
-    test.setTimeout(180000);
+    test.setTimeout(60000);
 
     const mainMenu = new MainMenuPage(page);
     await mainMenu.goto();
@@ -145,8 +142,8 @@ test.describe('Solo Mode Results', () => {
     const soloGame = new SoloGamePage(page);
     await soloGame.waitForGameReady();
 
-    // Wait for game to end
-    await soloGame.waitForResults(150000);
+    // Wait for game to end (10s game on localhost + countdown + buffer)
+    await soloGame.waitForResults(30000);
 
     // Results modal should be visible
     const hasResults = await soloGame.hasResultsModal();
@@ -157,7 +154,7 @@ test.describe('Solo Mode Results', () => {
   });
 
   test('play again starts new game', async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(60000);
 
     const mainMenu = new MainMenuPage(page);
     await mainMenu.goto();
@@ -167,7 +164,7 @@ test.describe('Solo Mode Results', () => {
     await soloGame.waitForGameReady();
 
     // Wait for game to end
-    await soloGame.waitForResults(150000);
+    await soloGame.waitForResults(30000);
 
     // Click play again
     await soloGame.playAgain();
@@ -180,7 +177,7 @@ test.describe('Solo Mode Results', () => {
   });
 
   test('back to menu navigates to main menu', async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(60000);
 
     const mainMenu = new MainMenuPage(page);
     await mainMenu.goto();
@@ -190,7 +187,7 @@ test.describe('Solo Mode Results', () => {
     await soloGame.waitForGameReady();
 
     // Wait for game to end
-    await soloGame.waitForResults(150000);
+    await soloGame.waitForResults(30000);
 
     // Click back to menu
     await soloGame.backToMenu();

@@ -87,9 +87,19 @@ export class WaitingRoomPage extends BasePage {
   }
 
   /**
+   * Wait until all players are ready (host sees "Ready to start!" message).
+   */
+  async waitForReadyToStart(timeout = 10000) {
+    await this.page.getByText('Ready to start!').waitFor({ state: 'visible', timeout });
+  }
+
+  /**
    * Start the game (host only).
+   * Waits for all players to be ready before starting.
    */
   async startGame() {
+    // Wait for "Ready to start!" message before clicking
+    await this.waitForReadyToStart();
     await this.startGameButton.click();
 
     // Wait for navigation to game page
@@ -144,9 +154,9 @@ export class WaitingRoomPage extends BasePage {
 
   /**
    * Set game duration (host only).
-   * @param duration Duration label like "1 min", "2 min", "3 min", "5 min"
+   * @param duration Duration label like "10s" (test only on localhost), "1 min", "2 min", "3 min", "5 min"
    */
-  async setDuration(duration: '1 min' | '2 min' | '3 min' | '5 min') {
+  async setDuration(duration: '10s' | '1 min' | '2 min' | '3 min' | '5 min') {
     await this.page.getByRole('button', { name: duration }).click();
   }
 

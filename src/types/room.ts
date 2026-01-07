@@ -29,6 +29,9 @@ export const DURATION_OPTIONS = [
   { value: 300, label: '5 min' },
 ];
 
+// Test-only duration (shown in development/localhost environments)
+export const TEST_DURATION_OPTION = { value: 10, label: '10s' };
+
 export const GRID_SIZE_OPTIONS = [
   { value: 4, label: '4x4' },
   { value: 5, label: '5x5' },

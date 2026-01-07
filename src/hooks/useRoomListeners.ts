@@ -18,6 +18,9 @@ export function useRoomListeners() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const hostTransferTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cachedPlayersRef = useRef<Record<string, Player>>({});
+  // Track if we've seen 'waiting' status - only redirect to game after status changes FROM waiting
+  // This prevents redirect when arriving at WaitingRoom during Play Again flow
+  const hasSeenWaitingRef = useRef(false);
 
   // Determine if we should become host based on deterministic selection
   const shouldBecomeHost = useCallback((players: Record<string, Player>, currentPlayerId: string | null) => {
@@ -39,6 +42,8 @@ export function useRoomListeners() {
     if (!roomCode) return;
 
     setConnectionError(null);
+    // Reset the waiting ref when room changes
+    hasSeenWaitingRef.current = false;
 
     // Listen to players
     const playersDbRef = ref(db, `rooms/${roomCode}/players`);
@@ -140,12 +145,20 @@ export function useRoomListeners() {
 
         setRoomStatus(status);
 
+        // Track if we've seen 'waiting' status
+        if (status === 'waiting') {
+          hasSeenWaitingRef.current = true;
+        }
+
         // Navigate to game when status changes to countdown/playing
-        // But not if game phase is 'lobby' (returning from game)
-        const currentPhase = useGameStore.getState().phase;
-        if ((status === 'countdown' || status === 'playing') && currentPhase !== 'lobby') {
+        // But only if we've been in 'waiting' state first (prevents redirect during Play Again flow)
+        // When a player clicks Play Again from results, they arrive at WaitingRoom while status might
+        // already be 'countdown' from the host starting a new game - we don't want to redirect them immediately
+        if ((status === 'countdown' || status === 'playing') && hasSeenWaitingRef.current) {
           const paths = getGamePaths(gameType, roomCode);
           navigate(paths.play);
+          // Reset the ref after redirect so future visits work correctly
+          hasSeenWaitingRef.current = false;
         }
 
         // If room finished and we're still in waiting room, show message

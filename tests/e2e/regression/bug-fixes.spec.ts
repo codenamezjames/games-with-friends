@@ -9,6 +9,7 @@ import { generateTestPlayerName, waitForFirebaseSync } from '../helpers';
 
 /**
  * Helper to set up a two-player game and get to results.
+ * Uses 10s test duration on localhost for fast tests.
  */
 async function setupGameToResults(browser: any) {
   const hostContext = await browser.newContext();
@@ -26,8 +27,8 @@ async function setupGameToResults(browser: any) {
   const roomCode = await hostMenu.createRoom(hostName);
   const hostWaitingRoom = new WaitingRoomPage(hostPage);
 
-  // Set shortest duration for faster tests
-  await hostWaitingRoom.setDuration('1 min');
+  // Set test duration (10s) for faster tests
+  await hostWaitingRoom.setDuration('10s');
 
   const guestMenu = new MainMenuPage(guestPage);
   await guestMenu.goto();
@@ -43,10 +44,10 @@ async function setupGameToResults(browser: any) {
   await hostGame.waitForGameStart();
   await guestGame.waitForGameStart();
 
-  // Wait for game to end
+  // Wait for game to end (10s game + countdown + buffer)
   await Promise.all([
-    hostGame.waitForGameEnd(90000),
-    guestGame.waitForGameEnd(90000),
+    hostGame.waitForGameEnd(30000),
+    guestGame.waitForGameEnd(30000),
   ]);
 
   return {
@@ -61,11 +62,9 @@ async function setupGameToResults(browser: any) {
 }
 
 test.describe('Bug Fix: Play Again Redirect', () => {
-  // Skip in CI - requires full game completion
-  test.skip(!!process.env.CI, 'Skipping long-running tests in CI');
-
+  // Uses 10s test duration on localhost for fast tests
   test('guest clicking Play Again while host on results goes to lobby, not back to results', async ({ browser }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
 
     const {
       hostContext,
@@ -81,15 +80,16 @@ test.describe('Bug Fix: Play Again Redirect', () => {
 
       // Wait for winner phase on both
       await Promise.all([
-        hostResults.waitForWinnerPhase(60000),
-        guestResults.waitForWinnerPhase(60000),
+        hostResults.waitForWinnerPhase(30000),
+        guestResults.waitForWinnerPhase(30000),
       ]);
 
       // Guest clicks Play Again first (while host is still on results)
-      await guestResults.rematchButton.click();
-
-      // Guest should navigate to waiting room, not back to results
-      await guestPage.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/, { timeout: 10000 });
+      // This triggers navigation to the waiting room
+      await Promise.all([
+        guestPage.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/, { timeout: 15000 }),
+        guestResults.rematchButton.click(),
+      ]);
 
       // Verify guest is in waiting room
       const guestWaitingRoom = new WaitingRoomPage(guestPage);
@@ -108,7 +108,7 @@ test.describe('Bug Fix: Play Again Redirect', () => {
   });
 
   test('host clicking Play Again resets room for guests', async ({ browser }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
 
     const {
       hostContext,
@@ -124,8 +124,8 @@ test.describe('Bug Fix: Play Again Redirect', () => {
 
       // Wait for winner phase on both
       await Promise.all([
-        hostResults.waitForWinnerPhase(60000),
-        guestResults.waitForWinnerPhase(60000),
+        hostResults.waitForWinnerPhase(30000),
+        guestResults.waitForWinnerPhase(30000),
       ]);
 
       // Host clicks Play Again first

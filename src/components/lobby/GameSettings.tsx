@@ -1,8 +1,16 @@
+import { useMemo } from 'react';
 import { useRoomStore } from '@/stores/useRoomStore';
-import { DURATION_OPTIONS, GRID_SIZE_OPTIONS } from '@/types';
+import { DURATION_OPTIONS, GRID_SIZE_OPTIONS, TEST_DURATION_OPTION } from '@/types';
 
 export function GameSettings() {
   const { gameSettings, setGameSettings } = useRoomStore();
+
+  // Show test duration option on localhost (for e2e tests)
+  const durationOptions = useMemo(() => {
+    const isLocalhost = typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    return isLocalhost ? [TEST_DURATION_OPTION, ...DURATION_OPTIONS] : DURATION_OPTIONS;
+  }, []);
 
   return (
     <div className="mb-6 pt-4 border-t border-white/10">
@@ -14,7 +22,7 @@ export function GameSettings() {
       <div className="mb-4">
         <label className="block text-sm text-text-muted mb-2">Duration</label>
         <div className="flex gap-2">
-          {DURATION_OPTIONS.map((option) => (
+          {durationOptions.map((option) => (
             <button
               key={option.value}
               onClick={() => setGameSettings({ duration: option.value })}

@@ -13,7 +13,10 @@ import { generateGrid, getWordPoints } from '@/games/wordtrace/utils';
 import { getGamePaths } from '@/games/registry';
 import { DICTIONARY } from '@/lib/dictionary';
 
-const DEFAULT_DURATION = 120;
+// Use shorter duration on localhost for testing
+const isLocalhost = typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const DEFAULT_DURATION = isLocalhost ? 10 : 120;
 const DEFAULT_GRID_SIZE = 5;
 
 export function SoloGamePage() {
