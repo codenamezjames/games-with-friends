@@ -1,4 +1,4 @@
-import { test, expect, BrowserContext, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { MainMenuPage, WaitingRoomPage, GamePage, ResultsPage } from '../pages';
 import { generateTestPlayerName, waitForFirebaseSync } from '../helpers';
 
@@ -219,6 +219,431 @@ test.describe('Bug Fix: Host UI After Reconnect', () => {
 
       // Guest should still be host
       await expect(guestWaitingRoom.startGameButton).toBeVisible();
+    } finally {
+      await hostContext.close();
+      await guestContext.close();
+    }
+  });
+});
+
+test.describe('Host Transfer and Reconnection', () => {
+  test('original host reconnects as guest after host transfer (does not get re-promoted)', async ({ browser }) => {
+    // Test scenario:
+    // 1. Host creates room, guest joins
+    // 2. Host disconnects (closes page)
+    // 3. Guest becomes new host after grace period
+    // 4. Original host reconnects - should be a GUEST, not re-promoted to host
+    test.setTimeout(45000);
+
+    const hostContext = await browser.newContext();
+    const guestContext = await browser.newContext();
+
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+
+    const hostName = generateTestPlayerName('OrigHost');
+    const guestName = generateTestPlayerName('Guest');
+
+    try {
+      // Host creates room
+      const hostMenu = new MainMenuPage(hostPage);
+      await hostMenu.goto();
+      const roomCode = await hostMenu.createRoom(hostName);
+      const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.expectVisible();
+
+      // Guest joins
+      const guestMenu = new MainMenuPage(guestPage);
+      await guestMenu.goto();
+      await guestMenu.joinRoom(guestName, roomCode);
+      const guestWaitingRoom = new WaitingRoomPage(guestPage);
+      await guestWaitingRoom.expectVisible();
+
+      // Verify initial state
+      await expect(hostWaitingRoom.startGameButton).toBeVisible();
+      await expect(guestWaitingRoom.readyCheckbox).toBeVisible();
+
+      // Host disconnects
+      await hostPage.close();
+
+      // Wait for host transfer grace period (5 seconds) + buffer
+      await guestPage.waitForTimeout(7000);
+
+      // Guest should now be host
+      await expect(guestWaitingRoom.startGameButton).toBeVisible({ timeout: 5000 });
+
+      // Original host reconnects
+      const reconnectedHostPage = await hostContext.newPage();
+      const reconnectedMenu = new MainMenuPage(reconnectedHostPage);
+      await reconnectedMenu.goto();
+      await reconnectedMenu.joinRoom(hostName, roomCode);
+
+      const reconnectedWaitingRoom = new WaitingRoomPage(reconnectedHostPage);
+      await reconnectedWaitingRoom.expectVisible();
+
+      // Original host should see GUEST UI (ready checkbox), NOT host UI
+      await expect(reconnectedWaitingRoom.readyCheckbox).toBeVisible({ timeout: 5000 });
+      await expect(reconnectedWaitingRoom.startGameButton).not.toBeVisible();
+
+      // Guest should still be host
+      await expect(guestWaitingRoom.startGameButton).toBeVisible();
+    } finally {
+      await hostContext.close();
+      await guestContext.close();
+    }
+  });
+
+  test('three players: host leaves, second player becomes host, original host rejoins as guest', async ({ browser }) => {
+    // Test scenario with 3 players to verify host transfer with multiple candidates
+    test.setTimeout(45000);
+
+    const hostContext = await browser.newContext();
+    const guest1Context = await browser.newContext();
+    const guest2Context = await browser.newContext();
+
+    const hostPage = await hostContext.newPage();
+    const guest1Page = await guest1Context.newPage();
+    const guest2Page = await guest2Context.newPage();
+
+    const hostName = generateTestPlayerName('Host');
+    const guest1Name = generateTestPlayerName('Guest1');
+    const guest2Name = generateTestPlayerName('Guest2');
+
+    try {
+      // Host creates room
+      const hostMenu = new MainMenuPage(hostPage);
+      await hostMenu.goto();
+      const roomCode = await hostMenu.createRoom(hostName);
+      const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.expectVisible();
+
+      // Guest1 joins
+      const guest1Menu = new MainMenuPage(guest1Page);
+      await guest1Menu.goto();
+      await guest1Menu.joinRoom(guest1Name, roomCode);
+      const guest1WaitingRoom = new WaitingRoomPage(guest1Page);
+      await guest1WaitingRoom.expectVisible();
+
+      // Guest2 joins
+      const guest2Menu = new MainMenuPage(guest2Page);
+      await guest2Menu.goto();
+      await guest2Menu.joinRoom(guest2Name, roomCode);
+      const guest2WaitingRoom = new WaitingRoomPage(guest2Page);
+      await guest2WaitingRoom.expectVisible();
+
+      // Verify initial state - host sees start button, guests see checkbox
+      await expect(hostWaitingRoom.startGameButton).toBeVisible();
+      await expect(guest1WaitingRoom.readyCheckbox).toBeVisible();
+      await expect(guest2WaitingRoom.readyCheckbox).toBeVisible();
+
+      // Host disconnects
+      await hostPage.close();
+
+      // Wait for host transfer grace period + buffer
+      await guest1Page.waitForTimeout(7000);
+
+      // One of the guests should become host (deterministic by playerId)
+      // Check if either guest1 or guest2 became host
+      const guest1IsHost = await guest1WaitingRoom.startGameButton.isVisible().catch(() => false);
+      const guest2IsHost = await guest2WaitingRoom.startGameButton.isVisible().catch(() => false);
+
+      expect(guest1IsHost || guest2IsHost).toBe(true);
+      // Exactly one should be host
+      expect(guest1IsHost !== guest2IsHost).toBe(true);
+
+      // Original host reconnects
+      const reconnectedHostPage = await hostContext.newPage();
+      const reconnectedMenu = new MainMenuPage(reconnectedHostPage);
+      await reconnectedMenu.goto();
+      await reconnectedMenu.joinRoom(hostName, roomCode);
+
+      const reconnectedWaitingRoom = new WaitingRoomPage(reconnectedHostPage);
+      await reconnectedWaitingRoom.expectVisible();
+
+      // Original host should be a guest now
+      await expect(reconnectedWaitingRoom.readyCheckbox).toBeVisible({ timeout: 5000 });
+      await expect(reconnectedWaitingRoom.startGameButton).not.toBeVisible();
+    } finally {
+      await hostContext.close();
+      await guest1Context.close();
+      await guest2Context.close();
+    }
+  });
+});
+
+test.describe('Play Again Scenarios', () => {
+  test('both players click Play Again simultaneously', async ({ browser }) => {
+    test.setTimeout(90000);
+
+    const {
+      hostContext,
+      guestContext,
+      hostPage,
+      guestPage,
+    } = await setupGameToResults(browser);
+
+    try {
+      const hostResults = new ResultsPage(hostPage);
+      const guestResults = new ResultsPage(guestPage);
+
+      // Wait for winner phase
+      await Promise.all([
+        hostResults.waitForWinnerPhase(30000),
+        guestResults.waitForWinnerPhase(30000),
+      ]);
+
+      // Both click Play Again at the same time
+      await Promise.all([
+        hostResults.rematchButton.click(),
+        guestResults.rematchButton.click(),
+      ]);
+
+      // Wait for navigation
+      await Promise.all([
+        hostPage.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/, { timeout: 10000 }),
+        guestPage.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/, { timeout: 10000 }),
+      ]);
+
+      // Both should be in waiting room
+      const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      const guestWaitingRoom = new WaitingRoomPage(guestPage);
+
+      await hostWaitingRoom.expectVisible();
+      await guestWaitingRoom.expectVisible();
+
+      // Host should see start button, guest should see checkbox
+      await expect(hostWaitingRoom.startGameButton).toBeVisible();
+      await expect(guestWaitingRoom.readyCheckbox).toBeVisible();
+    } finally {
+      await hostContext.close();
+      await guestContext.close();
+    }
+  });
+
+  test('guest leaves during results, host clicks Play Again', async ({ browser }) => {
+    test.setTimeout(90000);
+
+    const {
+      hostContext,
+      guestContext,
+      hostPage,
+      guestPage,
+    } = await setupGameToResults(browser);
+
+    try {
+      const hostResults = new ResultsPage(hostPage);
+      const guestResults = new ResultsPage(guestPage);
+
+      // Wait for winner phase
+      await Promise.all([
+        hostResults.waitForWinnerPhase(30000),
+        guestResults.waitForWinnerPhase(30000),
+      ]);
+
+      // Guest leaves (closes page)
+      await guestPage.close();
+      await hostPage.waitForTimeout(1000);
+
+      // Host clicks Play Again
+      await hostResults.rematchButton.click();
+
+      // Host should go to waiting room
+      await hostPage.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/, { timeout: 10000 });
+
+      const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.expectVisible();
+
+      // Host should still be host (see start button)
+      await expect(hostWaitingRoom.startGameButton).toBeVisible();
+    } finally {
+      await hostContext.close();
+      await guestContext.close();
+    }
+  });
+
+  test('host leaves during results, guest clicks Play Again', async ({ browser }) => {
+    test.setTimeout(90000);
+
+    const {
+      hostContext,
+      guestContext,
+      hostPage,
+      guestPage,
+    } = await setupGameToResults(browser);
+
+    try {
+      const hostResults = new ResultsPage(hostPage);
+      const guestResults = new ResultsPage(guestPage);
+
+      // Wait for winner phase
+      await Promise.all([
+        hostResults.waitForWinnerPhase(30000),
+        guestResults.waitForWinnerPhase(30000),
+      ]);
+
+      // Host leaves (closes page)
+      await hostPage.close();
+      await guestPage.waitForTimeout(1000);
+
+      // Guest clicks Play Again
+      await guestResults.rematchButton.click();
+
+      // Guest should go to waiting room
+      await guestPage.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/, { timeout: 10000 });
+
+      const guestWaitingRoom = new WaitingRoomPage(guestPage);
+      await guestWaitingRoom.expectVisible();
+
+      // After host transfer grace period, guest should become host
+      await guestPage.waitForTimeout(7000);
+      await expect(guestWaitingRoom.startGameButton).toBeVisible({ timeout: 5000 });
+    } finally {
+      await hostContext.close();
+      await guestContext.close();
+    }
+  });
+
+  test('multiple consecutive rematches work correctly', async ({ browser }) => {
+    // Test that Play Again can be used multiple times in a row
+    test.setTimeout(180000);
+
+    const hostContext = await browser.newContext();
+    const guestContext = await browser.newContext();
+
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+
+    const hostName = generateTestPlayerName('Host');
+    const guestName = generateTestPlayerName('Guest');
+
+    try {
+      // Setup initial room
+      const hostMenu = new MainMenuPage(hostPage);
+      await hostMenu.goto();
+      const roomCode = await hostMenu.createRoom(hostName);
+      const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.setDuration('10s');
+
+      const guestMenu = new MainMenuPage(guestPage);
+      await guestMenu.goto();
+      await guestMenu.joinRoom(guestName, roomCode);
+      const guestWaitingRoom = new WaitingRoomPage(guestPage);
+      await guestWaitingRoom.toggleReady();
+
+      // Play first game
+      await waitForFirebaseSync(1000);
+      await hostWaitingRoom.startGame();
+
+      const hostGame = new GamePage(hostPage);
+      const guestGame = new GamePage(guestPage);
+      await hostGame.waitForGameStart();
+      await guestGame.waitForGameStart();
+      await Promise.all([
+        hostGame.waitForGameEnd(30000),
+        guestGame.waitForGameEnd(30000),
+      ]);
+
+      // First rematch
+      const hostResults1 = new ResultsPage(hostPage);
+      const guestResults1 = new ResultsPage(guestPage);
+      await Promise.all([
+        hostResults1.waitForWinnerPhase(30000),
+        guestResults1.waitForWinnerPhase(30000),
+      ]);
+
+      await hostResults1.rematch();
+      await guestResults1.rematchButton.click();
+
+      await Promise.all([
+        hostPage.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/, { timeout: 10000 }),
+        guestPage.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/, { timeout: 10000 }),
+      ]);
+
+      // Play second game
+      const hostWaitingRoom2 = new WaitingRoomPage(hostPage);
+      const guestWaitingRoom2 = new WaitingRoomPage(guestPage);
+      await hostWaitingRoom2.expectVisible();
+      await guestWaitingRoom2.expectVisible();
+      await guestWaitingRoom2.toggleReady();
+
+      await waitForFirebaseSync(1000);
+      await hostWaitingRoom2.startGame();
+
+      const hostGame2 = new GamePage(hostPage);
+      const guestGame2 = new GamePage(guestPage);
+      await hostGame2.waitForGameStart();
+      await guestGame2.waitForGameStart();
+      await Promise.all([
+        hostGame2.waitForGameEnd(30000),
+        guestGame2.waitForGameEnd(30000),
+      ]);
+
+      // Second rematch
+      const hostResults2 = new ResultsPage(hostPage);
+      const guestResults2 = new ResultsPage(guestPage);
+      await Promise.all([
+        hostResults2.waitForWinnerPhase(30000),
+        guestResults2.waitForWinnerPhase(30000),
+      ]);
+
+      await hostResults2.rematch();
+      await guestResults2.rematchButton.click();
+
+      await Promise.all([
+        hostPage.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/, { timeout: 10000 }),
+        guestPage.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/, { timeout: 10000 }),
+      ]);
+
+      // Verify both in waiting room after second rematch
+      const hostWaitingRoom3 = new WaitingRoomPage(hostPage);
+      const guestWaitingRoom3 = new WaitingRoomPage(guestPage);
+      await hostWaitingRoom3.expectVisible();
+      await guestWaitingRoom3.expectVisible();
+
+      // Host should still be host after multiple rematches
+      await expect(hostWaitingRoom3.startGameButton).toBeVisible();
+      await expect(guestWaitingRoom3.readyCheckbox).toBeVisible();
+    } finally {
+      await hostContext.close();
+      await guestContext.close();
+    }
+  });
+
+  test('Play Again works after game with no words found', async ({ browser }) => {
+    // Edge case: results show immediately (no reveal phase) when no words found
+    test.setTimeout(90000);
+
+    const {
+      hostContext,
+      guestContext,
+      hostPage,
+      guestPage,
+    } = await setupGameToResults(browser);
+
+    try {
+      const hostResults = new ResultsPage(hostPage);
+      const guestResults = new ResultsPage(guestPage);
+
+      // Wait for results to show (either reveal or winner phase)
+      await Promise.all([
+        hostResults.waitForWinnerPhase(30000),
+        guestResults.waitForWinnerPhase(30000),
+      ]);
+
+      // Host clicks Play Again
+      await hostResults.rematchButton.click();
+      await hostPage.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/, { timeout: 10000 });
+
+      // Guest clicks Play Again
+      await guestResults.rematchButton.click();
+      await guestPage.waitForURL(/\/games\/wordtrace\/room\/[A-Z0-9]+/, { timeout: 10000 });
+
+      // Both in waiting room
+      const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      const guestWaitingRoom = new WaitingRoomPage(guestPage);
+
+      await hostWaitingRoom.expectVisible();
+      await guestWaitingRoom.expectVisible();
     } finally {
       await hostContext.close();
       await guestContext.close();
