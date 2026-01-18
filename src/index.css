@@ -375,3 +375,20 @@ body {
 .score-pop {
   animation: score-pop 0.3s ease-out;
 }
+
+/* Jiggle animation for unready players */
+@keyframes jiggle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-3deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
+}
+
+.jiggle {
+  animation: jiggle 0.3s ease-in-out infinite;
+}

@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { ref, update } from 'firebase/database';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/common/Button';
+import { ReadyCheckPanel } from '@/components/common/ReadyCheckPanel';
 import { Confetti } from '@/games/wordtrace/components/Confetti';
 import { ResultsGrid } from '@/games/wordtrace/components/ResultsGrid';
-import { prepareWordRevealSequence, getWordPoints, findWordPath } from '@/games/wordtrace/utils';
+import { prepareWordRevealSequence, getWordPoints, findWordPath, generateGrid } from '@/games/wordtrace/utils';
 import { useGameStore } from '@/stores/useGameStore';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useRoom } from '@/hooks/useRoom';
+import { useGameListeners } from '@/hooks/useGameListeners';
+import { useRoomListeners } from '@/hooks/useRoomListeners';
 import { getGamePaths } from '@/games/registry';
 
 interface FloatingPoint {
@@ -22,11 +25,16 @@ type Speed = 'normal' | 'fast';
 
 export function ResultsPage() {
   const navigate = useNavigate();
-  const { results, foundWords, grid, gridSize, resetGame } = useGameStore();
-  const { players, playerId: localPlayerId } = useRoomStore();
-  const { setRoomStatus } = useRoom();
+  const { results, foundWords, grid, gridSize, resetGame, setGrid, setGridSize, setDuration, setPhase: setGamePhase, setStartTime, setTimeRemaining } = useGameStore();
+  const { players, playerId: localPlayerId, isHost, isSpectator, roomCode, gameSettings } = useRoomStore();
+  const { setReadyForRematch, clearRematchReady, startGame, updateGameState } = useRoom();
 
-  const [phase, setPhase] = useState<AnimationPhase>('revealing');
+  // Enable game state listeners for guests to receive rematch navigation
+  useGameListeners();
+  // Enable room listeners to keep players synced for ready check
+  useRoomListeners();
+
+  const [animPhase, setAnimPhase] = useState<AnimationPhase>('revealing');
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const [animatedScores, setAnimatedScores] = useState<Record<string, number>>({});
   const [speed, setSpeed] = useState<Speed>('normal');
@@ -106,12 +114,12 @@ export function ResultsPage() {
   // Animation timer - uses recursive setTimeout to respect speed changes
   useEffect(() => {
     if (wordSequence.length === 0) {
-      setPhase('winner');
+      setAnimPhase('winner');
       setShowConfetti(true);
       return;
     }
 
-    if (phase !== 'revealing') return;
+    if (animPhase !== 'revealing') return;
 
     const scheduleNext = (index: number) => {
       const delay = speedRef.current === 'fast' ? 500 : 1000;
@@ -119,7 +127,7 @@ export function ResultsPage() {
         const next = index + 1;
         if (next >= wordSequence.length) {
           timerRef.current = window.setTimeout(() => {
-            setPhase('winner');
+            setAnimPhase('winner');
             setShowConfetti(true);
           }, 1000);
           return;
@@ -144,48 +152,108 @@ export function ResultsPage() {
         timerRef.current = null;
       }
     };
-  }, [phase, wordSequence, awardPoints]);
+  }, [animPhase, wordSequence, awardPoints]);
 
   // Handlers
   const handleSpeedToggle = useCallback(() => {
     setSpeed((prev) => (prev === 'normal' ? 'fast' : 'normal'));
   }, []);
 
-  const handleRematch = useCallback(async () => {
-    // Get values directly from stores to avoid stale closure issues
-    const currentRoomCode = useRoomStore.getState().roomCode;
-    const isTestMode = useGameStore.getState().testMode;
-    const isHost = useRoomStore.getState().isHost;
-    const currentGameType = useGameStore.getState().gameType;
-    console.log('[ResultsPage] handleRematch called', { currentRoomCode, isTestMode, isHost });
+  // Handle ready check toggle
+  const handleReadyChange = useCallback(async (isReady: boolean) => {
+    await setReadyForRematch(isReady);
+  }, [setReadyForRematch]);
 
-    // Mark as intentionally leaving to prevent redirect effect from firing
+  // Handle starting the rematch game (host only)
+  const handleStartRematch = useCallback(async (markUnreadyAsSpectators: boolean) => {
+    const currentRoomCode = useRoomStore.getState().roomCode;
+    const currentIsHost = useRoomStore.getState().isHost;
+    const currentPlayers = useRoomStore.getState().players;
+
+    if (!currentIsHost || !currentRoomCode) return;
+
+    console.log('[ResultsPage] handleStartRematch called', { markUnreadyAsSpectators });
     isLeavingRef.current = true;
 
-    // If host, reset the room status to 'waiting' and clear game state
-    // This prevents guests from being redirected back to results
-    if (isHost && currentRoomCode) {
-      await setRoomStatus('waiting');
-      // Reset game state phase in Firebase so guests don't get redirected back to results
-      await update(ref(db, `rooms/${currentRoomCode}`), {
-        'gameState/phase': 'lobby',
-        'gameState/results': null,
+    try {
+      // Build update object for player status
+      const playerUpdates: Record<string, boolean> = {};
+
+      Object.entries(currentPlayers).forEach(([playerId, player]) => {
+        if (player.isSpectator) return; // Skip existing spectators
+
+        if (markUnreadyAsSpectators && !player.readyForRematch) {
+          // Mark unready players as spectators
+          playerUpdates[`players/${playerId}/isSpectator`] = true;
+        } else {
+          // Set isReady to true for all players who will play (for startGame check)
+          playerUpdates[`players/${playerId}/isReady`] = true;
+        }
       });
-    }
 
-    // Navigate to appropriate destination
-    if (isTestMode) {
-      navigate('/');
-    } else if (currentRoomCode) {
+      if (Object.keys(playerUpdates).length > 0) {
+        await update(ref(db, `rooms/${currentRoomCode}`), playerUpdates);
+      }
+
+      // Clear rematch ready flags
+      await clearRematchReady();
+
+      // Generate new grid with current settings
+      const { duration, gridSize: settingsGridSize } = gameSettings;
+      const newGrid = generateGrid(settingsGridSize);
+      const newStartTime = Date.now() + 3000; // 3 second countdown
+
+      // Set local state
+      setGrid(newGrid);
+      setGridSize(settingsGridSize);
+      setDuration(duration);
+      setTimeRemaining(duration);
+      setGamePhase('countdown');
+      setStartTime(newStartTime);
+
+      // Get updated players list (after spectator update)
+      const playersSnapshot = useRoomStore.getState().players;
+
+      // Initialize scores for all active players
+      const scores: Record<string, number> = {};
+      const wordCounts: Record<string, number> = {};
+      const foundWords: Record<string, string[]> = {};
+
+      Object.entries(playersSnapshot).forEach(([playerId, player]) => {
+        // Skip spectators (existing and newly marked)
+        const wasMarkedSpectator = markUnreadyAsSpectators && !player.isSpectator && !player.readyForRematch;
+        if (!player.isSpectator && !wasMarkedSpectator) {
+          scores[playerId] = 0;
+          wordCounts[playerId] = 0;
+          foundWords[playerId] = [];
+        }
+      });
+
+      const initialState = {
+        grid: newGrid,
+        gridSize: settingsGridSize,
+        timeRemaining: duration,
+        duration,
+        phase: 'countdown',
+        startTime: newStartTime,
+        scores,
+        wordCounts,
+        foundWords,
+        results: null,
+      };
+
+      await startGame(initialState);
+      await updateGameState(initialState);
+
+      // Navigate to game page
+      const currentGameType = useGameStore.getState().gameType;
       const paths = getGamePaths(currentGameType, currentRoomCode);
-      navigate(paths.room);
-    } else {
-      console.warn('[ResultsPage] No roomCode found, navigating home');
-      navigate('/');
+      navigate(paths.play);
+    } catch (err) {
+      console.error('[ResultsPage] Failed to start rematch:', err);
+      isLeavingRef.current = false;
     }
-
-    resetGame();
-  }, [resetGame, navigate, setRoomStatus]);
+  }, [clearRematchReady, gameSettings, setGrid, setGridSize, setDuration, setTimeRemaining, setGamePhase, setStartTime, startGame, updateGameState, navigate]);
 
   const handleBackToLobby = useCallback(() => {
     resetGame();
@@ -227,7 +295,7 @@ export function ResultsPage() {
   if (!results) return null;
 
   // REVEALING PHASE - Full Page
-  if (phase === 'revealing') {
+  if (animPhase === 'revealing') {
     return (
       <div className="min-h-screen animated-gradient flex flex-col">
         {/* Header */}
@@ -388,15 +456,30 @@ export function ResultsPage() {
         {sharedCount > 0 && <span> • {sharedCount} shared</span>}
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-4 w-full max-w-sm">
-        <Button onClick={handleRematch} className="flex-1 text-lg py-3">
-          Play Again
+      {/* Ready Check Panel (multiplayer) or Home button (test mode) */}
+      {roomCode ? (
+        <ReadyCheckPanel
+          players={players}
+          localPlayerId={localPlayerId || ''}
+          isHost={isHost}
+          isSpectator={isSpectator}
+          onReadyChange={handleReadyChange}
+          onStartGame={handleStartRematch}
+        />
+      ) : (
+        <div className="flex gap-4 w-full max-w-sm">
+          <Button onClick={handleBackToLobby} className="flex-1 text-lg py-3">
+            Home
+          </Button>
+        </div>
+      )}
+
+      {/* Home button (always show for multiplayer) */}
+      {roomCode && (
+        <Button variant="link" onClick={handleBackToLobby} className="mt-4">
+          Leave Room
         </Button>
-        <Button variant="secondary" onClick={handleBackToLobby} className="flex-1 text-lg py-3">
-          Home
-        </Button>
-      </div>
+      )}
     </div>
   );
 }

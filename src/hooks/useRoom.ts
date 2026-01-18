@@ -242,18 +242,50 @@ export function useRoom() {
     []
   );
 
+  const setReadyForRematch = useCallback(
+    async (isReady: boolean): Promise<void> => {
+      const { roomCode, playerId: currentPlayerId } = useRoomStore.getState();
+      if (!roomCode || !currentPlayerId) return;
+
+      const readyRef = ref(db, `rooms/${roomCode}/players/${currentPlayerId}/readyForRematch`);
+      await set(readyRef, isReady);
+    },
+    []
+  );
+
+  const clearRematchReady = useCallback(async (): Promise<void> => {
+    const { roomCode, isHost } = useRoomStore.getState();
+    if (!roomCode || !isHost) return;
+
+    const playersRef = ref(db, `rooms/${roomCode}/players`);
+    const snapshot = await get(playersRef);
+    if (!snapshot.exists()) return;
+
+    const players = snapshot.val();
+    const updates: Record<string, boolean | null> = {};
+    Object.keys(players).forEach((playerId) => {
+      updates[`${playerId}/readyForRematch`] = null;
+    });
+    await update(playersRef, updates);
+  }, []);
+
   const startGame = useCallback(
     async (initialState: object): Promise<void> => {
       const { roomCode, isHost } = useRoomStore.getState();
       if (!roomCode || !isHost) return;
 
-      // Check all players are ready
+      // Check all non-spectator players are ready
       const playersRef = ref(db, `rooms/${roomCode}/players`);
       const snapshot = await get(playersRef);
       const players = snapshot.val();
 
       const allReady = Object.values(players).every(
-        (p) => (p as { isReady: boolean }).isReady
+        (p) => {
+          const player = p as { isReady: boolean; isSpectator?: boolean };
+          // Spectators don't need to be ready
+          if (player.isSpectator) return true;
+          return player.isReady;
+        }
       );
       if (!allReady) {
         throw new Error('Not all players are ready');
@@ -405,6 +437,8 @@ export function useRoom() {
     rejoinRoom,
     leaveRoom,
     setReady,
+    setReadyForRematch,
+    clearRematchReady,
     startGame,
     updateGameState,
     updateGameStateFields,

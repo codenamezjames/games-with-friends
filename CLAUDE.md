@@ -37,5 +37,4 @@ bd sync               # Sync with git
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
-
-i need to make sure to update the version number so the user knows if the change was deployed
+- Update the version number when making changes so users know if changes were deployed

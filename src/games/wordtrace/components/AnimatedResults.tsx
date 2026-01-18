@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/common/Button';
+import { ReadyCheckPanel } from '@/components/common/ReadyCheckPanel';
 import { WordRevealCard } from './WordRevealCard';
 import { prepareWordRevealSequence, getWordPoints } from '@/games/wordtrace/utils';
 import type { GameResults, Player } from '@/types';
@@ -9,9 +10,12 @@ interface AnimatedResultsProps {
   foundWords: Record<string, string[]>;
   players: Record<string, Player>;
   localPlayerId: string;
+  isHost: boolean;
   isSpectator?: boolean;
+  isMultiplayer: boolean;
   onAnimationComplete: () => void;
-  onRematch: () => void;
+  onReadyChange: (isReady: boolean) => void;
+  onStartRematch: (markUnreadyAsSpectators: boolean) => void;
   onBackToLobby: () => void;
 }
 
@@ -29,9 +33,12 @@ export function AnimatedResults({
   foundWords,
   players,
   localPlayerId,
+  isHost,
   isSpectator = false,
+  isMultiplayer,
   onAnimationComplete,
-  onRematch,
+  onReadyChange,
+  onStartRematch,
   onBackToLobby,
 }: AnimatedResultsProps) {
   const [phase, setPhase] = useState<AnimationPhase>('revealing');
@@ -344,23 +351,28 @@ export function AnimatedResults({
 
           {/* Actions */}
           <div className="flex flex-col gap-3">
-            {isSpectator ? (
-              <p className="text-center text-text-muted text-sm mb-2">
-                Waiting for host to start next game...
-              </p>
+            {isMultiplayer ? (
+              <ReadyCheckPanel
+                players={players}
+                localPlayerId={localPlayerId}
+                isHost={isHost}
+                isSpectator={isSpectator}
+                onReadyChange={onReadyChange}
+                onStartGame={onStartRematch}
+              />
             ) : (
-              <div className="flex gap-3">
-                <Button onClick={onRematch} className="flex-1">
-                  Rematch
-                </Button>
-                <Button variant="secondary" onClick={onBackToLobby} className="flex-1">
-                  Back to Lobby
-                </Button>
-              </div>
+              <Button onClick={onBackToLobby} className="w-full">
+                Home
+              </Button>
             )}
             <Button variant="secondary" onClick={onAnimationComplete} className="w-full">
               View Details
             </Button>
+            {isMultiplayer && (
+              <Button variant="link" onClick={onBackToLobby} className="w-full">
+                Leave Room
+              </Button>
+            )}
           </div>
         </div>
       </div>

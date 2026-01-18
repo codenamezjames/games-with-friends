@@ -8,6 +8,8 @@ export interface Player {
   // Presence tracking
   lastSeen?: number;      // Timestamp of last heartbeat
   isConnected?: boolean;  // false when disconnected (set by onDisconnect)
+  // Rematch ready check
+  readyForRematch?: boolean;
 }
 
 export type RoomStatus = 'waiting' | 'countdown' | 'playing' | 'finished';

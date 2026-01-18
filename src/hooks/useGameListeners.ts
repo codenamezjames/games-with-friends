@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ref, onValue, onChildAdded } from 'firebase/database';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { db } from '@/lib/firebase';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
@@ -9,10 +9,12 @@ import type { SerializableGameState, WordSubmission } from '@/types';
 
 export function useGameListeners() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { roomCode, isHost } = useRoomStore();
   const { applyStateFromFirebase, gameType } = useGameStore();
   const hasLoadedInitialState = useRef(false);
   const hasNavigatedToResults = useRef(false);
+  const hasNavigatedToGame = useRef(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,6 +23,7 @@ export function useGameListeners() {
     // Reset on roomCode change
     hasLoadedInitialState.current = false;
     hasNavigatedToResults.current = false;
+    hasNavigatedToGame.current = false;
     setConnectionError(null);
 
     // Listen to game state changes
@@ -51,6 +54,16 @@ export function useGameListeners() {
           console.log('[useGameListeners] Game finished, navigating to results');
           navigate(paths.results);
         }
+
+        // Navigate to game when a new game starts (rematch from results page)
+        // This handles the case when host starts a rematch and guests need to navigate
+        const isOnResultsPage = location.pathname.includes('/results');
+        if (!isHost && (state.phase === 'countdown' || state.phase === 'playing') && isOnResultsPage && !hasNavigatedToGame.current) {
+          hasNavigatedToGame.current = true;
+          const paths = getGamePaths(gameType, roomCode);
+          console.log('[useGameListeners] Rematch started, navigating to game');
+          navigate(paths.play);
+        }
       },
       (error) => {
         console.error('[useGameListeners] Firebase listener error:', error);
@@ -61,7 +74,7 @@ export function useGameListeners() {
     return () => {
       unsubGameState();
     };
-  }, [roomCode, isHost, applyStateFromFirebase, navigate, gameType]);
+  }, [roomCode, isHost, applyStateFromFirebase, navigate, gameType, location.pathname]);
 
   return { connectionError };
 }

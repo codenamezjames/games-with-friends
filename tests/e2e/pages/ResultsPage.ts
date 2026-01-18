@@ -12,11 +12,19 @@ export class ResultsPage extends BasePage {
   readonly speedToggle: Locator;
   readonly rematchButton: Locator;
   readonly homeButton: Locator;
+  readonly leaveRoomButton: Locator;
   readonly confetti: Locator;
   readonly progressBar: Locator;
   readonly longestWord: Locator;
   readonly wordRevealHeader: Locator;
   readonly trophyEmoji: Locator;
+
+  // Ready check panel elements
+  readonly readyCheckPanel: Locator;
+  readonly readyCheckTitle: Locator;
+  readonly readyCheckbox: Locator;
+  readonly startAnywayButton: Locator;
+  readonly readyCountdown: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -24,10 +32,18 @@ export class ResultsPage extends BasePage {
     // Winner phase elements
     this.winnerAnnouncement = page.locator('.winner-announce h1');
     this.trophyEmoji = page.locator('.trophy-bounce');
-    this.rematchButton = page.getByRole('button', { name: 'Play Again' });
+    this.rematchButton = page.getByRole('button', { name: 'Play Again' }); // Legacy - may not exist
     this.homeButton = page.getByRole('button', { name: 'Home' });
+    this.leaveRoomButton = page.getByRole('button', { name: 'Leave Room' });
     this.confetti = page.locator('canvas');
     this.longestWord = page.getByText('Longest Word').locator('..');
+
+    // Ready check panel elements
+    this.readyCheckPanel = page.getByRole('heading', { name: 'Ready for Rematch?' }).locator('..');
+    this.readyCheckTitle = page.getByRole('heading', { name: 'Ready for Rematch?' });
+    this.readyCheckbox = page.locator('input[type="checkbox"]').first();
+    this.startAnywayButton = page.getByRole('button', { name: /Start Anyway/ });
+    this.readyCountdown = page.getByText(/\d+s remaining/);
 
     // Reveal phase elements
     this.wordRevealHeader = page.getByRole('heading', { name: 'Word Reveal' });
@@ -108,7 +124,59 @@ export class ResultsPage extends BasePage {
   }
 
   /**
-   * Click rematch / play again.
+   * Mark this player as ready for rematch.
+   */
+  async markReady() {
+    // Wait for checkbox to be visible and enabled
+    await this.readyCheckbox.waitFor({ state: 'visible' });
+    const isChecked = await this.readyCheckbox.isChecked();
+    if (!isChecked) {
+      await this.readyCheckbox.click();
+      // Wait for the checkbox to be checked
+      await this.page.waitForTimeout(500);
+    }
+  }
+
+  /**
+   * Unmark this player as ready.
+   */
+  async unmarkReady() {
+    const isChecked = await this.readyCheckbox.isChecked();
+    if (isChecked) {
+      await this.readyCheckbox.click();
+    }
+  }
+
+  /**
+   * Check if the ready check panel is visible.
+   */
+  async hasReadyCheckPanel(): Promise<boolean> {
+    try {
+      return await this.readyCheckTitle.isVisible();
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Click "Start Anyway" button (host only).
+   */
+  async startAnyway() {
+    await this.startAnywayButton.click();
+    // Wait for navigation to game page
+    await this.page.waitForURL(/\/games\/wordtrace\/play\/[A-Z0-9]+/);
+  }
+
+  /**
+   * Wait for game to auto-start after all players are ready.
+   */
+  async waitForAutoStart(timeout = 10000) {
+    await this.page.waitForURL(/\/games\/wordtrace\/play\/[A-Z0-9]+/, { timeout });
+  }
+
+  /**
+   * Legacy: Click rematch / play again button if it exists.
+   * @deprecated Use markReady() instead for the new ready check flow.
    */
   async rematch() {
     await this.rematchButton.click();
@@ -121,6 +189,15 @@ export class ResultsPage extends BasePage {
    */
   async goHome() {
     await this.homeButton.click();
+    // Wait for navigation
+    await this.page.waitForURL('/');
+  }
+
+  /**
+   * Click leave room button.
+   */
+  async leaveRoom() {
+    await this.leaveRoomButton.click();
     // Wait for navigation
     await this.page.waitForURL('/');
   }
