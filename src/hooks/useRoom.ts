@@ -9,7 +9,8 @@ import {
   onDisconnect,
   serverTimestamp,
 } from 'firebase/database';
-import { db } from '@/lib/firebase';
+import { signInAnonymously } from 'firebase/auth';
+import { db, auth } from '@/lib/firebase';
 import { useRoomStore } from '@/stores/useRoomStore';
 
 // Characters that look distinct (avoiding O, 0, I, 1, L)
@@ -39,7 +40,22 @@ export function useRoom() {
 
   const createRoom = useCallback(
     async (gameType: string, playerName: string): Promise<string> => {
-      const currentPlayerId = useRoomStore.getState().playerId;
+      let currentPlayerId = useRoomStore.getState().playerId;
+
+      // If playerId is missing, try to get from Firebase auth or re-authenticate
+      if (!currentPlayerId) {
+        // Check if Firebase auth has a user
+        if (auth.currentUser) {
+          currentPlayerId = auth.currentUser.uid;
+          useRoomStore.getState().setPlayerId(currentPlayerId);
+        } else {
+          // Re-authenticate
+          const userCredential = await signInAnonymously(auth);
+          currentPlayerId = userCredential.user.uid;
+          useRoomStore.getState().setPlayerId(currentPlayerId);
+        }
+      }
+
       if (!currentPlayerId) throw new Error('Not authenticated');
 
       // Generate unique room code with collision check
@@ -99,7 +115,20 @@ export function useRoom() {
 
   const joinRoom = useCallback(
     async (roomCode: string, playerName: string): Promise<JoinResult> => {
-      const currentPlayerId = useRoomStore.getState().playerId;
+      let currentPlayerId = useRoomStore.getState().playerId;
+
+      // If playerId is missing, try to get from Firebase auth or re-authenticate
+      if (!currentPlayerId) {
+        if (auth.currentUser) {
+          currentPlayerId = auth.currentUser.uid;
+          useRoomStore.getState().setPlayerId(currentPlayerId);
+        } else {
+          const userCredential = await signInAnonymously(auth);
+          currentPlayerId = userCredential.user.uid;
+          useRoomStore.getState().setPlayerId(currentPlayerId);
+        }
+      }
+
       if (!currentPlayerId) throw new Error('Not authenticated');
 
       roomCode = roomCode.toUpperCase();

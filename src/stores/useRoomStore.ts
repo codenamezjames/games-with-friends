@@ -57,7 +57,13 @@ export const useRoomStore = create<RoomState>()(
         set((state) => ({
           gameSettings: { ...state.gameSettings, ...settings },
         })),
-      resetRoom: () => set(initialState),
+      resetRoom: () => set((state) => ({
+        ...initialState,
+        // Preserve user identity - these are not room-specific
+        playerId: state.playerId,
+        playerName: state.playerName,
+        gameSettings: state.gameSettings,
+      })),
     }),
     {
       name: 'word-trace-room',
