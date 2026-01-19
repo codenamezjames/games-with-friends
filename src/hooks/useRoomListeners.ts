@@ -29,15 +29,27 @@ export function useRoomListeners() {
     if (!currentPlayerId) return false;
 
     // Find all connected non-spectator players
-    const connectedPlayers = Object.entries(players)
+    const connectedNonSpectators = Object.entries(players)
       .filter(([, p]) => p.isConnected !== false && !p.isSpectator)
       .sort(([idA], [idB]) => idA.localeCompare(idB)); // Sort by playerId for determinism
 
-    if (connectedPlayers.length === 0) return false;
+    // If there are non-spectators, use them for host selection
+    if (connectedNonSpectators.length > 0) {
+      const [newHostId] = connectedNonSpectators[0];
+      return newHostId === currentPlayerId;
+    }
 
-    // The first connected player (lowest playerId) should become host
-    const [newHostId] = connectedPlayers[0];
-    return newHostId === currentPlayerId;
+    // Fallback: if only spectators remain, first spectator becomes host
+    const connectedSpectators = Object.entries(players)
+      .filter(([, p]) => p.isConnected !== false && p.isSpectator)
+      .sort(([idA], [idB]) => idA.localeCompare(idB));
+
+    if (connectedSpectators.length > 0) {
+      const [newHostId] = connectedSpectators[0];
+      return newHostId === currentPlayerId;
+    }
+
+    return false;
   }, []);
 
   useEffect(() => {

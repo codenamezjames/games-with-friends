@@ -10,9 +10,13 @@ export function Countdown({ startTime, onComplete }: CountdownProps) {
   const [display, setDisplay] = useState<string>('3');
   const [isVisible, setIsVisible] = useState(true);
   const lastBeepRef = useRef<number>(0);
+  const hasCompletedRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
   const { play } = useSoundEffects();
 
   useEffect(() => {
+    hasCompletedRef.current = false;
+
     const updateCountdown = () => {
       const now = Date.now();
       const remaining = Math.ceil((startTime - now) / 1000);
@@ -24,20 +28,29 @@ export function Countdown({ startTime, onComplete }: CountdownProps) {
           play('countdown');
         }
         setDisplay(remaining.toString());
-        requestAnimationFrame(updateCountdown);
-      } else if (remaining === 0) {
-        setDisplay('GO!');
-        setTimeout(() => {
+        rafRef.current = requestAnimationFrame(updateCountdown);
+      } else if (!hasCompletedRef.current) {
+        hasCompletedRef.current = true;
+        if (remaining === 0) {
+          setDisplay('GO!');
+          setTimeout(() => {
+            setIsVisible(false);
+            onComplete();
+          }, 500);
+        } else {
           setIsVisible(false);
           onComplete();
-        }, 500);
-      } else {
-        setIsVisible(false);
-        onComplete();
+        }
       }
     };
 
-    requestAnimationFrame(updateCountdown);
+    rafRef.current = requestAnimationFrame(updateCountdown);
+
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
   }, [startTime, onComplete, play]);
 
   if (!isVisible) return null;

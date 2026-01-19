@@ -51,6 +51,8 @@ export function usePresence() {
         clearInterval(heartbeatRef.current);
         heartbeatRef.current = null;
       }
+      // Cancel the onDisconnect handler to prevent accumulation
+      onDisconnect(playerRef).cancel();
     };
   }, [roomCode, playerId]);
 }

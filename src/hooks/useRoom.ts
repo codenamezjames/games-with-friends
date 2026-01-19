@@ -267,6 +267,9 @@ export function useRoom() {
     const wasOriginalHost = roomData.metadata.hostId === currentPlayerId;
     const shouldBeHost = wasOriginalHost || isHost;
 
+    // Check if player was previously a spectator (from stored state)
+    const wasSpectator = useRoomStore.getState().isSpectator;
+
     // Re-add player to the room (works for both waiting and in-progress states)
     await set(playerRef, {
       name: playerName,
@@ -275,6 +278,7 @@ export function useRoom() {
       joinedAt: serverTimestamp(),
       isConnected: true,
       lastSeen: serverTimestamp(),
+      isSpectator: wasSpectator,
     });
 
     // Set up presence - mark as disconnected instead of removing
