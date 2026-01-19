@@ -75,9 +75,19 @@ export function useRoomListeners() {
 
         // Find the current host
         const host = Object.values(players).find((p) => p.isHost);
+        const hostExists = !!host;
 
-        // Check if host is disconnected
-        if (host?.isConnected === false) {
+        // Check if host left entirely (no host in players list)
+        if (!hostExists) {
+          console.log('[useRoomListeners] No host found in room');
+          // Immediately try to claim host if we should be the new one
+          if (shouldBecomeHost(players, playerId)) {
+            console.log('[useRoomListeners] Claiming host role (host left)');
+            claimHost();
+          }
+        }
+        // Check if host is disconnected (but still in players list)
+        else if (host?.isConnected === false) {
           // Host is disconnected - start transfer timer if not already running
           if (!hostTransferTimerRef.current) {
             console.log('[useRoomListeners] Host disconnected, starting transfer timer');

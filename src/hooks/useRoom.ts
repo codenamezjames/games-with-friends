@@ -157,17 +157,42 @@ export function useRoom() {
     const { roomCode, isHost, playerId: currentPlayerId } = useRoomStore.getState();
     if (!roomCode || !currentPlayerId) return;
 
+    // If we're the host, transfer to another player before leaving
+    if (isHost) {
+      const playersRef = ref(db, `rooms/${roomCode}/players`);
+      const snapshot = await get(playersRef);
+      const players = snapshot.val() || {};
+
+      // Find another connected non-spectator player to become host
+      const otherPlayers = Object.entries(players)
+        .filter(([id, p]) => {
+          const player = p as { isConnected?: boolean; isSpectator?: boolean };
+          return id !== currentPlayerId && player.isConnected !== false && !player.isSpectator;
+        })
+        .sort(([idA], [idB]) => idA.localeCompare(idB)); // Sort for determinism
+
+      if (otherPlayers.length > 0) {
+        // Transfer host to first available player
+        const [newHostId] = otherPlayers[0];
+        const roomRef = ref(db, `rooms/${roomCode}`);
+        await update(roomRef, {
+          'metadata/hostId': newHostId,
+          [`players/${currentPlayerId}/isHost`]: false,
+          [`players/${newHostId}/isHost`]: true,
+        });
+        console.log('[useRoom] Transferred host to', newHostId);
+      }
+    }
+
     // Remove player
     const playerRef = ref(db, `rooms/${roomCode}/players/${currentPlayerId}`);
     await remove(playerRef);
 
-    // If host and room is empty, delete room
-    if (isHost) {
-      const playersRef = ref(db, `rooms/${roomCode}/players`);
-      const snapshot = await get(playersRef);
-      if (!snapshot.exists()) {
-        await remove(ref(db, `rooms/${roomCode}`));
-      }
+    // If room is now empty, delete it
+    const playersRef = ref(db, `rooms/${roomCode}/players`);
+    const snapshot = await get(playersRef);
+    if (!snapshot.exists() || Object.keys(snapshot.val() || {}).length === 0) {
+      await remove(ref(db, `rooms/${roomCode}`));
     }
 
     resetRoom();
