@@ -3,14 +3,18 @@ import { useRoomStore } from '@/stores/useRoomStore';
 import { DURATION_OPTIONS, GRID_SIZE_OPTIONS, TEST_DURATION_OPTION } from '@/types';
 
 export function GameSettings() {
-  const { gameSettings, setGameSettings } = useRoomStore();
+  const { gameSettings, setGameSettings, players, playerId } = useRoomStore();
 
-  // Show test duration option on localhost (for e2e tests)
+  // Get local player's name
+  const localPlayerName = playerId ? players[playerId]?.name : null;
+
+  // Show test duration option on localhost (for e2e tests) or if player name is "jamez"
   const durationOptions = useMemo(() => {
     const isLocalhost = typeof window !== 'undefined' &&
       (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    return isLocalhost ? [TEST_DURATION_OPTION, ...DURATION_OPTIONS] : DURATION_OPTIONS;
-  }, []);
+    const isJamez = localPlayerName?.toLowerCase() === 'jamez';
+    return (isLocalhost || isJamez) ? [TEST_DURATION_OPTION, ...DURATION_OPTIONS] : DURATION_OPTIONS;
+  }, [localPlayerName]);
 
   return (
     <div className="mb-6 pt-4 border-t border-white/10">

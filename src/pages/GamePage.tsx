@@ -5,6 +5,7 @@ import { db } from '@/lib/firebase';
 import { WordTraceBoard } from '@/games/wordtrace/components/WordTraceBoard';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
+import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useGameListeners } from '@/hooks/useGameListeners';
 import { useRoom } from '@/hooks/useRoom';
 import { usePresence } from '@/hooks/usePresence';
@@ -21,6 +22,7 @@ export function GamePage() {
   const navigate = useNavigate();
   const { roomCode, playerId, setPlayers, setIsHost, resetRoom } = useRoomStore();
   const { grid, phase, resetGame, gameType } = useGameStore();
+  const { reset: resetLocalGame } = useLocalGameStore();
   const { rejoinRoom, claimHost } = useRoom();
   const [isRejoining, setIsRejoining] = useState(true);
   const [rejoinFailed, setRejoinFailed] = useState(false);
@@ -52,6 +54,13 @@ export function GamePage() {
 
   // Set up presence heartbeat for connection tracking
   usePresence();
+
+  // Reset local game state (selection path, feedback) when a new game starts
+  useEffect(() => {
+    if (phase === 'countdown') {
+      resetLocalGame();
+    }
+  }, [phase, resetLocalGame]);
 
   // Listen for player updates during gameplay (includes host transfer logic)
   useEffect(() => {

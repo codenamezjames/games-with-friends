@@ -11,8 +11,7 @@ interface ReadyCheckPanelProps {
   onStartGame: (markUnreadyAsSpectators: boolean) => void;
 }
 
-const TIMEOUT_SECONDS = 30;
-const JIGGLE_START_SECONDS = 5;
+const HOST_START_ANYWAY_DELAY = 10; // Host can start anyway after 10 seconds
 const AUTO_START_COUNTDOWN = 2;
 
 export function ReadyCheckPanel({
@@ -23,7 +22,7 @@ export function ReadyCheckPanel({
   onReadyChange,
   onStartGame,
 }: ReadyCheckPanelProps) {
-  const [timeRemaining, setTimeRemaining] = useState(TIMEOUT_SECONDS);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [autoStartCountdown, setAutoStartCountdown] = useState<number | null>(null);
   const hasStartedRef = useRef(false);
 
@@ -31,6 +30,11 @@ export function ReadyCheckPanel({
   // Filter out disconnected players so they don't block ready check
   const activePlayers = Object.entries(players).filter(
     ([, p]) => !p.isSpectator && p.isConnected !== false
+  );
+
+  // Get spectators who might want to join the next game
+  const spectators = Object.entries(players).filter(
+    ([, p]) => p.isSpectator && p.isConnected !== false
   );
 
   // Check if all players are ready
@@ -42,24 +46,22 @@ export function ReadyCheckPanel({
   const isLocalReady = localPlayer?.readyForRematch ?? false;
 
 
-  // Handle checkbox toggle
+  // Handle checkbox toggle (spectators can also toggle to join the game)
   const handleToggleReady = useCallback(() => {
-    if (isSpectator) return;
+    // If spectator clicks, they're joining - always set to true
+    if (isSpectator) {
+      onReadyChange(true);
+      return;
+    }
     onReadyChange(!isLocalReady);
   }, [isLocalReady, isSpectator, onReadyChange]);
 
-  // Main countdown timer
+  // Elapsed time counter (for showing "Start Anyway" after delay)
   useEffect(() => {
-    if (autoStartCountdown !== null) return; // Don't tick main timer during auto-start
+    if (autoStartCountdown !== null) return; // Don't tick during auto-start
 
     const timer = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
+      setElapsedSeconds((prev) => prev + 1);
     }, 1000);
 
     return () => clearInterval(timer);
@@ -71,14 +73,6 @@ export function ReadyCheckPanel({
       setAutoStartCountdown(AUTO_START_COUNTDOWN);
     }
   }, [allReady, activePlayers.length, autoStartCountdown]);
-
-  // Handle timeout - start game with unready as spectators (host only)
-  useEffect(() => {
-    if (timeRemaining === 0 && isHost && !hasStartedRef.current) {
-      hasStartedRef.current = true;
-      onStartGame(true); // Mark unready players as spectators
-    }
-  }, [timeRemaining, isHost, onStartGame]);
 
   // Auto-start countdown timer
   useEffect(() => {
@@ -115,14 +109,13 @@ export function ReadyCheckPanel({
         {activePlayers.map(([playerId, player]) => {
           const isLocal = playerId === localPlayerId;
           const isReady = player.readyForRematch ?? false;
-          const showJiggle = !isReady && timeRemaining <= JIGGLE_START_SECONDS;
 
           return (
             <div
               key={playerId}
               className={`flex items-center gap-3 p-2 rounded-lg ${
                 isLocal ? 'bg-primary/20 ring-1 ring-primary' : 'bg-bg-cell/50'
-              } ${showJiggle ? 'jiggle' : ''}`}
+              }`}
             >
               <label
                 className={`flex items-center gap-3 flex-1 ${
@@ -158,19 +151,14 @@ export function ReadyCheckPanel({
             Starting in {autoStartCountdown}...
           </div>
         ) : (
-          <>
-            <div className="text-text-muted text-sm mb-1">
-              {readyCount} of {activePlayers.length} ready
-            </div>
-            <div className={`text-lg font-bold ${timeRemaining <= 10 ? 'text-error' : 'text-text-secondary'}`}>
-              {timeRemaining}s remaining
-            </div>
-          </>
+          <div className="text-text-muted text-sm">
+            {readyCount} of {activePlayers.length} ready
+          </div>
         )}
       </div>
 
-      {/* Host controls */}
-      {isHost && !allReady && timeRemaining > 0 && autoStartCountdown === null && (
+      {/* Host controls - show "Start Anyway" after delay if not all ready */}
+      {isHost && !allReady && elapsedSeconds >= HOST_START_ANYWAY_DELAY && autoStartCountdown === null && (
         <Button
           variant="secondary"
           onClick={handleStartAnyway}
@@ -180,8 +168,41 @@ export function ReadyCheckPanel({
         </Button>
       )}
 
-      {/* Spectator message */}
-      {isSpectator && (
+      {/* Spectator section - shows spectators and lets them join */}
+      {spectators.length > 0 && (
+        <div className="border-t border-white/10 pt-4 mt-4">
+          <h4 className="text-sm font-medium text-text-muted mb-2">
+            Watching ({spectators.length})
+          </h4>
+          <div className="space-y-2">
+            {spectators.map(([playerId, player]) => {
+              const isLocal = playerId === localPlayerId;
+              return (
+                <div
+                  key={playerId}
+                  className={`flex items-center gap-3 p-2 rounded-lg ${
+                    isLocal ? 'bg-primary/20 ring-1 ring-primary' : 'bg-bg-cell/30'
+                  }`}
+                >
+                  {isLocal ? (
+                    <button
+                      onClick={handleToggleReady}
+                      className="flex-1 text-left px-3 py-1 bg-primary/30 hover:bg-primary/50 rounded text-primary font-medium text-sm transition-colors"
+                    >
+                      Join Next Game
+                    </button>
+                  ) : (
+                    <span className="text-text-muted text-sm">{player.name}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Spectator message - only show if spectator hasn't joined yet */}
+      {isSpectator && !spectators.some(([id]) => id === localPlayerId) && (
         <p className="text-center text-text-muted text-sm">
           Waiting for players to ready up...
         </p>

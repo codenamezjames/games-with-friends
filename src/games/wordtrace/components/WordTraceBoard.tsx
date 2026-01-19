@@ -5,6 +5,7 @@ import { GamePlayerList } from './GamePlayerList';
 import { WordList } from './WordList';
 import { SpectatorBanner } from './SpectatorBanner';
 import { SpectatorWordList } from './SpectatorWordList';
+import { LiveWordFeed } from './LiveWordFeed';
 import { Feedback } from './Feedback';
 import { Countdown } from '@/components/common/Countdown';
 import { useRoomStore } from '@/stores/useRoomStore';
@@ -402,8 +403,13 @@ export function WordTraceBoard() {
 
       {/* Main game area */}
       <main className="flex-1 flex flex-col gap-4 max-w-md mx-auto w-full">
-        {/* Spectator Banner */}
-        {isSpectator && <SpectatorBanner timeRemaining={timeRemaining} />}
+        {/* Spectator Banner and Live Feed */}
+        {isSpectator && (
+          <>
+            <SpectatorBanner timeRemaining={timeRemaining} />
+            <LiveWordFeed foundWords={foundWords} players={players} />
+          </>
+        )}
 
         {/* Grid */}
         <div className="flex flex-col items-center">
@@ -414,7 +420,7 @@ export function WordTraceBoard() {
                 onComplete={handleCountdownComplete}
               />
             )}
-            <Grid onWordSubmit={handleWordSubmit} disabled={isSpectator} />
+            <Grid onWordSubmit={handleWordSubmit} disabled={isSpectator} isSpectator={isSpectator} />
             {!isSpectator && <Feedback />}
           </div>
         </div>

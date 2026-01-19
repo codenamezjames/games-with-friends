@@ -12,7 +12,7 @@ const HOST_TRANSFER_DELAY_MS = 5000; // 5 seconds grace period
 
 export function useRoomListeners() {
   const navigate = useNavigate();
-  const { roomCode, playerId, setPlayers, setRoomStatus, resetRoom, setIsHost } = useRoomStore();
+  const { roomCode, playerId, setPlayers, setRoomStatus, resetRoom, setIsHost, setIsSpectator } = useRoomStore();
   const { resetGame, gameType } = useGameStore();
   const { claimHost } = useRoom();
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -116,6 +116,16 @@ export function useRoomListeners() {
           }
         }
 
+        // Always sync isSpectator state from Firebase
+        if (playerId) {
+          const isSpectatorInFirebase = players[playerId]?.isSpectator === true;
+          const currentIsSpectator = useRoomStore.getState().isSpectator;
+          if (isSpectatorInFirebase !== currentIsSpectator) {
+            console.log('[useRoomListeners] Updating isSpectator from', currentIsSpectator, 'to', isSpectatorInFirebase);
+            setIsSpectator(isSpectatorInFirebase);
+          }
+        }
+
         setPlayers(players);
       },
       (error) => {
@@ -182,7 +192,7 @@ export function useRoomListeners() {
         hostTransferTimerRef.current = null;
       }
     };
-  }, [roomCode, playerId, setPlayers, setRoomStatus, resetRoom, resetGame, navigate, shouldBecomeHost, claimHost, setIsHost, gameType]);
+  }, [roomCode, playerId, setPlayers, setRoomStatus, resetRoom, resetGame, navigate, shouldBecomeHost, claimHost, setIsHost, setIsSpectator, gameType]);
 
   return { connectionError };
 }

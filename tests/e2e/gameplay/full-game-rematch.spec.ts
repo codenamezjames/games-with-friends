@@ -114,11 +114,13 @@ test.describe('Full Game with Rematch', () => {
       // Wait for Firebase to sync player list
       await hostPage.waitForTimeout(1000);
 
-      // Both players mark ready
-      await Promise.all([
-        hostResults.markReady(),
-        guestResults.markReady(),
-      ]);
+      // Guest marks ready FIRST to expose race condition bug
+      // (Bug: if guest clicks first, results may replay instead of starting new game)
+      await guestResults.markReady();
+      await guestPage.waitForTimeout(2000);
+
+      // Then host marks ready
+      await hostResults.markReady();
 
       // Wait for auto-start (should trigger when all ready)
       await Promise.all([

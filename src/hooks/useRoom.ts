@@ -244,11 +244,21 @@ export function useRoom() {
 
   const setReadyForRematch = useCallback(
     async (isReady: boolean): Promise<void> => {
-      const { roomCode, playerId: currentPlayerId } = useRoomStore.getState();
+      const { roomCode, playerId: currentPlayerId, isSpectator } = useRoomStore.getState();
       if (!roomCode || !currentPlayerId) return;
 
-      const readyRef = ref(db, `rooms/${roomCode}/players/${currentPlayerId}/readyForRematch`);
-      await set(readyRef, isReady);
+      // If spectator marks ready, also clear their spectator status (they're joining the next game)
+      if (isReady && isSpectator) {
+        const playerRef = ref(db, `rooms/${roomCode}/players/${currentPlayerId}`);
+        await update(playerRef, {
+          readyForRematch: true,
+          isSpectator: false,
+        });
+        // Local state will be synced via useRoomListeners
+      } else {
+        const readyRef = ref(db, `rooms/${roomCode}/players/${currentPlayerId}/readyForRematch`);
+        await set(readyRef, isReady);
+      }
     },
     []
   );

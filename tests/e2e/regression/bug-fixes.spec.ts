@@ -174,8 +174,8 @@ test.describe('Ready Check Flow', () => {
       // Ensure both players are still showing
       await expect(hostPage.getByText('0 of 2 ready')).toBeVisible({ timeout: 5000 });
 
-      // Host should see "Start Anyway" button (no one marked ready yet)
-      await expect(hostResults.startAnywayButton).toBeVisible({ timeout: 5000 });
+      // Host should see "Start Anyway" button after 10 second delay (no one marked ready yet)
+      await expect(hostResults.startAnywayButton).toBeVisible({ timeout: 15000 });
 
       // Host clicks Start Anyway
       await hostResults.startAnywayButton.click();

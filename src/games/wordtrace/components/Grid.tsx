@@ -8,6 +8,7 @@ import { isAdjacent, getWordFromPath } from '@/games/wordtrace/utils';
 interface GridProps {
   onWordSubmit: (word: string, path: number[]) => void;
   disabled?: boolean;
+  isSpectator?: boolean;
 }
 
 const CELL_GAP = 8; // gap-2 = 0.5rem = 8px
@@ -93,7 +94,7 @@ function findBestAdjacentCell(
   return null;
 }
 
-export function Grid({ onWordSubmit, disabled = false }: GridProps) {
+export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: GridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const { grid, gridSize, phase } = useGameStore();
   const {
@@ -274,7 +275,7 @@ export function Grid({ onWordSubmit, disabled = false }: GridProps) {
       </div>
 
       {/* Grid container */}
-      <div className="relative">
+      <div className={`relative ${isSpectator ? 'opacity-75' : ''}`}>
         {/* SVG overlay for path lines */}
         {pathLines.length > 0 && (
           <svg
@@ -323,6 +324,36 @@ export function Grid({ onWordSubmit, disabled = false }: GridProps) {
             />
           ))}
         </div>
+
+        {/* Spectator mode indicator */}
+        {isSpectator && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+            <div className="bg-bg-main/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-accent/50 flex items-center gap-2">
+              <svg
+                className="w-5 h-5 text-accent"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+              </svg>
+              <span className="text-accent font-semibold text-sm uppercase tracking-wide">
+                Watching
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

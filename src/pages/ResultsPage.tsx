@@ -46,6 +46,7 @@ export function ResultsPage() {
   const idCounterRef = useRef(0);
   const speedRef = useRef<Speed>(speed);
   const isLeavingRef = useRef(false);
+  const hasInitializedScoresRef = useRef(false);
 
   // Keep speedRef in sync with speed state
   useEffect(() => {
@@ -78,8 +79,10 @@ export function ResultsPage() {
     );
   }, [foundWords]);
 
-  // Initialize scores to 0
+  // Initialize scores to 0 (only once to prevent resetting during ready check)
   useEffect(() => {
+    if (hasInitializedScoresRef.current) return;
+
     const initialScores: Record<string, number> = {};
     Object.keys(players).forEach((id) => {
       if (!players[id].isSpectator) {
@@ -87,6 +90,7 @@ export function ResultsPage() {
       }
     });
     setAnimatedScores(initialScores);
+    hasInitializedScoresRef.current = true;
   }, [players]);
 
   // Get player name by ID
