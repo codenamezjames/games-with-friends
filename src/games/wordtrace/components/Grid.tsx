@@ -22,77 +22,60 @@ function getCellCenter(index: number, cellSize: number, gridSize: number): { x: 
   return { x, y };
 }
 
-// Calculate angle difference between two angles (handles wrap-around)
-function getAngleDiff(angle1: number, angle2: number): number {
-  let diff = Math.abs(angle1 - angle2);
-  if (diff > Math.PI) diff = 2 * Math.PI - diff;
-  return diff;
-}
-
-// Find the best adjacent cell based on movement direction
-function findBestAdjacentCell(
+// Find the closest adjacent cell to the pointer position
+function findClosestAdjacentCell(
   fromIndex: number,
-  targetIndex: number,
-  movementAngle: number | null,
+  pointerX: number,
+  pointerY: number,
   gridSize: number,
+  cellSize: number,
+  gridRect: DOMRect,
   currentPath: number[]
 ): number | null {
-  // If no movement angle data, accept the target if it's adjacent
-  if (movementAngle === null) return targetIndex;
-
   const fromRow = Math.floor(fromIndex / gridSize);
   const fromCol = fromIndex % gridSize;
 
-  // Get all 8 adjacent cells
-  const adjacentCells: Array<{ index: number; angle: number; isDiagonal: boolean }> = [];
+  // Convert pointer position to grid-relative coordinates
+  const relX = pointerX - gridRect.left;
+  const relY = pointerY - gridRect.top;
+
+  // Find the closest adjacent cell
+  let closestIndex: number | null = null;
+  let closestDistance = Infinity;
+
   for (let dRow = -1; dRow <= 1; dRow++) {
     for (let dCol = -1; dCol <= 1; dCol++) {
       if (dRow === 0 && dCol === 0) continue;
+
       const newRow = fromRow + dRow;
       const newCol = fromCol + dCol;
+
       if (newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize) {
         const index = newRow * gridSize + newCol;
+
         // Skip cells already in path
         if (currentPath.includes(index)) continue;
-        const angle = Math.atan2(dRow, dCol);
-        const isDiagonal = dRow !== 0 && dCol !== 0;
-        adjacentCells.push({ index, angle, isDiagonal });
+
+        // Calculate cell center position
+        const cellCenter = getCellCenter(index, cellSize, gridSize);
+
+        // Calculate distance from pointer to cell center
+        const dx = relX - cellCenter.x;
+        const dy = relY - cellCenter.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Selection threshold - select when within 60% of the cell size from center
+        const threshold = cellSize * 0.6;
+
+        if (distance < threshold && distance < closestDistance) {
+          closestDistance = distance;
+          closestIndex = index;
+        }
       }
     }
   }
 
-  if (adjacentCells.length === 0) return null;
-
-  // Find the cell with the smallest angle difference to movement direction
-  let bestCell = adjacentCells[0];
-  let bestAngleDiff = getAngleDiff(bestCell.angle, movementAngle);
-
-  for (const cell of adjacentCells) {
-    const angleDiff = getAngleDiff(cell.angle, movementAngle);
-    // Prefer this cell if it has a smaller angle difference,
-    // OR if angle difference is similar but this cell is what the user touched
-    if (angleDiff < bestAngleDiff - 0.1 || (Math.abs(angleDiff - bestAngleDiff) < 0.2 && cell.index === targetIndex)) {
-      bestCell = cell;
-      bestAngleDiff = angleDiff;
-    }
-  }
-
-  // Only return the best cell if it's reasonably aligned (within 45 degrees)
-  if (bestAngleDiff < Math.PI / 4) {
-    return bestCell.index;
-  }
-
-  // Fall back to target if it's adjacent and within a looser threshold
-  const targetRow = Math.floor(targetIndex / gridSize);
-  const targetCol = targetIndex % gridSize;
-  const targetAngle = Math.atan2(targetRow - fromRow, targetCol - fromCol);
-  const targetAngleDiff = getAngleDiff(targetAngle, movementAngle);
-
-  if (targetAngleDiff < Math.PI / 2 && !currentPath.includes(targetIndex)) {
-    return targetIndex;
-  }
-
-  return null;
+  return closestIndex;
 }
 
 export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: GridProps) {
@@ -112,6 +95,14 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
 
   const isDisabled = phase !== 'playing' || disabled;
 
+  // Calculate cell size based on grid size (smaller cells for larger grids)
+  // Must be before callbacks that use it
+  const cellSize = useMemo(() => {
+    if (gridSize === 4) return 70;
+    if (gridSize === 5) return 60;
+    return 50; // 6x6
+  }, [gridSize]);
+
   const handlePointerDown = useCallback(
     (index: number) => {
       if (isDisabled) return;
@@ -122,20 +113,17 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
     [isDisabled, startTrace, play, vibrate]
   );
 
-  // Track last cell to avoid duplicate processing
-  const lastCellRef = useRef<number | null>(null);
-
-  // Track pointer positions for movement direction calculation
-  const pointerHistoryRef = useRef<Array<{ x: number; y: number; time: number }>>([]);
-  const movementAngleRef = useRef<number | null>(null);
+  // Track last selected cell to avoid duplicate processing
+  const lastSelectedRef = useRef<number | null>(null);
 
   const handleCellEnter = useCallback(
-    (index: number, useMovementFilter: boolean = false) => {
+    (index: number) => {
       if (!isTracing || isDisabled) return;
 
       // Backtracking - if we enter a cell that's second-to-last in path, remove last
       if (currentPath.length >= 2 && currentPath[currentPath.length - 2] === index) {
         removeLastFromPath();
+        lastSelectedRef.current = index;
         return;
       }
 
@@ -145,80 +133,68 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
       // Check adjacency with last cell
       const lastIndex = currentPath[currentPath.length - 1];
 
-      // When using movement filter (touch drag), find the best cell based on movement direction
-      if (useMovementFilter && movementAngleRef.current !== null) {
-        const bestIndex = findBestAdjacentCell(lastIndex, index, movementAngleRef.current, gridSize, currentPath);
-        if (bestIndex !== null && !currentPath.includes(bestIndex)) {
-          play('tileSelect');
-          vibrate('tileSelect');
-          addToPath(bestIndex);
-        }
-        return;
-      }
-
-      // Normal adjacency check for mouse hover
       if (isAdjacent(lastIndex, index, gridSize)) {
         play('tileSelect');
         vibrate('tileSelect');
         addToPath(index);
+        lastSelectedRef.current = index;
       }
     },
     [isTracing, isDisabled, currentPath, removeLastFromPath, addToPath, play, vibrate, gridSize]
   );
 
-  // Handle pointer move for touch dragging (pointerenter doesn't fire during touch drag)
+  // Handle pointer move for touch dragging - uses proximity-based selection
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!isTracing || isDisabled) return;
+      if (!isTracing || isDisabled || !gridRef.current) return;
 
-      const now = Date.now();
-      const pos = { x: e.clientX, y: e.clientY, time: now };
+      const gridRect = gridRef.current.getBoundingClientRect();
+      const lastIndex = currentPath[currentPath.length - 1];
 
-      // Add to history and keep only recent positions (last 100ms)
-      pointerHistoryRef.current.push(pos);
-      pointerHistoryRef.current = pointerHistoryRef.current.filter(p => now - p.time < 100);
-
-      // Calculate movement angle from oldest to newest position
-      if (pointerHistoryRef.current.length >= 2) {
-        const oldest = pointerHistoryRef.current[0];
-        const newest = pointerHistoryRef.current[pointerHistoryRef.current.length - 1];
-        const dx = newest.x - oldest.x;
-        const dy = newest.y - oldest.y;
+      // Check for backtracking first - if pointer is near the second-to-last cell
+      if (currentPath.length >= 2) {
+        const secondLastIndex = currentPath[currentPath.length - 2];
+        const secondLastCenter = getCellCenter(secondLastIndex, cellSize, gridSize);
+        const relX = e.clientX - gridRect.left;
+        const relY = e.clientY - gridRect.top;
+        const dx = relX - secondLastCenter.x;
+        const dy = relY - secondLastCenter.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        // Only update angle if we've moved enough to determine direction
-        if (distance > 10) {
-          movementAngleRef.current = Math.atan2(dy, dx);
+        if (distance < cellSize * 0.5) {
+          if (lastSelectedRef.current !== secondLastIndex) {
+            removeLastFromPath();
+            lastSelectedRef.current = secondLastIndex;
+          }
+          return;
         }
       }
 
-      // Get the element under the pointer
-      const element = document.elementFromPoint(e.clientX, e.clientY);
-      if (!element) return;
+      // Find the closest adjacent cell to select
+      const closestIndex = findClosestAdjacentCell(
+        lastIndex,
+        e.clientX,
+        e.clientY,
+        gridSize,
+        cellSize,
+        gridRect,
+        currentPath
+      );
 
-      // Find the cell element (might be the element itself or a parent)
-      const cellElement = element.closest('[data-index]');
-      if (!cellElement) return;
-
-      const index = parseInt(cellElement.getAttribute('data-index') || '', 10);
-      if (isNaN(index)) return;
-
-      // Only process if we've moved to a new cell
-      if (index === lastCellRef.current) return;
-      lastCellRef.current = index;
-
-      // Use movement filter for touch/drag to improve diagonal selection
-      handleCellEnter(index, true);
+      if (closestIndex !== null && closestIndex !== lastSelectedRef.current) {
+        play('tileSelect');
+        vibrate('tileSelect');
+        addToPath(closestIndex);
+        lastSelectedRef.current = closestIndex;
+      }
     },
-    [isTracing, isDisabled, handleCellEnter]
+    [isTracing, isDisabled, currentPath, cellSize, gridSize, removeLastFromPath, addToPath, play, vibrate]
   );
 
   // Reset refs when trace ends
   useEffect(() => {
     if (!isTracing) {
-      lastCellRef.current = null;
-      pointerHistoryRef.current = [];
-      movementAngleRef.current = null;
+      lastSelectedRef.current = null;
     }
   }, [isTracing]);
 
@@ -237,13 +213,6 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
 
   // Get the current word being traced
   const currentWord = getWordFromPath(grid, currentPath);
-
-  // Calculate cell size based on grid size (smaller cells for larger grids)
-  const cellSize = useMemo(() => {
-    if (gridSize === 4) return 70;
-    if (gridSize === 5) return 60;
-    return 50; // 6x6
-  }, [gridSize]);
 
   // Calculate path lines for SVG overlay
   const pathLines = useMemo(() => {
