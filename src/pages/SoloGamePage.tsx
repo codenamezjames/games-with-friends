@@ -96,7 +96,18 @@ export function SoloGamePage() {
 
     // Start timer
     timerRef.current = window.setInterval(() => {
-      const newTime = useGameStore.getState().timeRemaining - 1;
+      const currentTime = useGameStore.getState().timeRemaining;
+
+      // Guard: don't decrement if already at or below 0
+      if (currentTime <= 0) {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        return;
+      }
+
+      const newTime = currentTime - 1;
       setTimeRemaining(newTime);
 
       if (newTime <= 0) {
@@ -202,9 +213,10 @@ export function SoloGamePage() {
     };
   }, []);
 
-  // Format timer
-  const minutes = Math.floor(timeRemaining / 60);
-  const seconds = timeRemaining % 60;
+  // Format timer (clamp to 0 to prevent negative display)
+  const displayTime = Math.max(0, timeRemaining);
+  const minutes = Math.floor(displayTime / 60);
+  const seconds = displayTime % 60;
   const timerDisplay = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
   const myWords = foundWords[playerId] || [];
