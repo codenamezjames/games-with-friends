@@ -19,6 +19,7 @@ export function useRoomListeners() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const hostTransferTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cachedPlayersRef = useRef<Record<string, Player>>({});
+  const prevPlayersRef = useRef<Record<string, Player>>({});
   // Track if we've seen 'waiting' status - only redirect to game after status changes FROM waiting
   // This prevents redirect when arriving at WaitingRoom during Play Again flow
   const hasSeenWaitingRef = useRef(false);
@@ -73,6 +74,27 @@ export function useRoomListeners() {
 
         // Store players for reference in timeout callbacks
         cachedPlayersRef.current = players;
+
+        // Detect player joins/leaves for toast notifications
+        const prevPlayers = prevPlayersRef.current;
+        const prevIds = Object.keys(prevPlayers);
+        const currentIds = Object.keys(players);
+
+        // Only show notifications if we had previous state (skip initial load)
+        if (prevIds.length > 0) {
+          // Detect joins
+          const joined = currentIds.filter(id => !prevIds.includes(id) && id !== playerId);
+          joined.forEach(id => {
+            useToastStore.getState().addToast(`${players[id].name} joined`, 'info');
+          });
+
+          // Detect leaves
+          const left = prevIds.filter(id => !currentIds.includes(id) && id !== playerId);
+          left.forEach(id => {
+            useToastStore.getState().addToast(`${prevPlayers[id].name} left`, 'info');
+          });
+        }
+        prevPlayersRef.current = { ...players };
 
         // Find the current host
         const host = Object.values(players).find((p) => p.isHost);

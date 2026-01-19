@@ -2,7 +2,11 @@ import { useMemo } from 'react';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { DURATION_OPTIONS, GRID_SIZE_OPTIONS, TEST_DURATION_OPTION } from '@/types';
 
-export function GameSettings() {
+interface GameSettingsProps {
+  readOnly?: boolean;
+}
+
+export function GameSettings({ readOnly = false }: GameSettingsProps) {
   const { gameSettings, setGameSettings, players, playerId } = useRoomStore();
 
   // Get local player's name
@@ -20,6 +24,7 @@ export function GameSettings() {
     <div className="mb-6 pt-4 border-t border-white/10">
       <h3 className="text-lg font-semibold text-text-primary mb-3">
         Game Settings
+        {readOnly && <span className="text-xs text-text-muted font-normal ml-2">(Host controls)</span>}
       </h3>
 
       {/* Duration */}
@@ -29,14 +34,16 @@ export function GameSettings() {
           {durationOptions.map((option) => (
             <button
               key={option.value}
-              onClick={() => setGameSettings({ duration: option.value })}
+              disabled={readOnly}
+              onClick={() => !readOnly && setGameSettings({ duration: option.value })}
               className={`
                 flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors
                 ${
                   gameSettings.duration === option.value
                     ? 'bg-primary text-white'
-                    : 'bg-bg-cell text-text-secondary hover:bg-bg-cell-hover'
+                    : 'bg-bg-cell text-text-secondary'
                 }
+                ${readOnly ? 'cursor-default opacity-80' : 'hover:bg-bg-cell-hover'}
               `}
             >
               {option.label}
@@ -52,14 +59,16 @@ export function GameSettings() {
           {GRID_SIZE_OPTIONS.map((option) => (
             <button
               key={option.value}
-              onClick={() => setGameSettings({ gridSize: option.value })}
+              disabled={readOnly}
+              onClick={() => !readOnly && setGameSettings({ gridSize: option.value })}
               className={`
                 flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors
                 ${
                   gameSettings.gridSize === option.value
                     ? 'bg-primary text-white'
-                    : 'bg-bg-cell text-text-secondary hover:bg-bg-cell-hover'
+                    : 'bg-bg-cell text-text-secondary'
                 }
+                ${readOnly ? 'cursor-default opacity-80' : 'hover:bg-bg-cell-hover'}
               `}
             >
               {option.label}

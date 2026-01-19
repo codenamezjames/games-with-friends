@@ -381,8 +381,8 @@ export function WaitingRoom() {
           <PlayerList players={players} />
         </div>
 
-        {/* Game Settings - Host only */}
-        {isHost && <GameSettings />}
+        {/* Game Settings - visible to all, only host can edit */}
+        <GameSettings readOnly={!isHost} />
 
         {/* Actions */}
         {isHost ? (

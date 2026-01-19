@@ -4,6 +4,7 @@ import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { useGameStore } from '@/stores/useGameStore';
 import { getAvailableGames, getGameRoutes, getGamePaths } from '@/games/registry';
 import { ToastContainer } from '@/components/common/Toast';
+import { ConnectionStatus } from '@/components/common/ConnectionStatus';
 
 // Import game modules to register them (side effect)
 import '@/games/wordtrace';
@@ -95,6 +96,7 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
+      <ConnectionStatus />
       <AppContent />
       <TestResultsNavigator />
       <ToastContainer />

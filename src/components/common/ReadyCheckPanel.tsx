@@ -124,19 +124,27 @@ export function ReadyCheckPanel({
         {activePlayers.map(([playerId, player]) => {
           const isLocal = playerId === localPlayerId;
           const isReady = player.readyForRematch ?? false;
+          const isDisconnected = player.isConnected === false;
 
           return (
             <div
               key={playerId}
               className={`flex items-center gap-3 p-2 rounded-lg ${
                 isLocal ? 'bg-primary/20 ring-1 ring-primary' : 'bg-bg-cell/50'
-              }`}
+              } ${isDisconnected ? 'opacity-50' : ''}`}
             >
               <label
                 className={`flex items-center gap-3 flex-1 ${
                   isLocal && !isSpectator ? 'cursor-pointer' : 'cursor-default'
                 }`}
               >
+                {/* Connection status indicator */}
+                <span
+                  className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                    isDisconnected ? 'bg-text-muted' : 'bg-success'
+                  }`}
+                  title={isDisconnected ? 'Disconnected' : 'Connected'}
+                />
                 <input
                   type="checkbox"
                   checked={isReady}
@@ -146,12 +154,15 @@ export function ReadyCheckPanel({
                     isLocal && !isSpectator ? 'cursor-pointer' : 'cursor-default'
                   }`}
                 />
-                <span className="text-text-primary font-medium">
+                <span className={`font-medium ${isDisconnected ? 'text-text-muted' : 'text-text-primary'}`}>
                   {player.name}
                   {isLocal && <span className="text-xs text-text-muted ml-1">(You)</span>}
+                  {isDisconnected && (
+                    <span className="text-xs text-text-muted italic ml-1">(reconnecting...)</span>
+                  )}
                 </span>
               </label>
-              {isReady && (
+              {isReady && !isDisconnected && (
                 <span className="text-success text-sm">Ready</span>
               )}
             </div>
@@ -159,58 +170,63 @@ export function ReadyCheckPanel({
         })}
       </div>
 
-      {/* Game Settings - Host only */}
-      {isHost && (
-        <div className="mb-4 pt-3 border-t border-white/10">
-          <h4 className="text-sm font-medium text-text-muted mb-2">Next Round Settings</h4>
+      {/* Game Settings - visible to all, only host can edit */}
+      <div className="mb-4 pt-3 border-t border-white/10">
+        <h4 className="text-sm font-medium text-text-muted mb-2">
+          Next Round Settings
+          {!isHost && <span className="text-xs text-text-muted font-normal ml-1">(Host controls)</span>}
+        </h4>
 
-          {/* Duration */}
-          <div className="mb-3">
-            <label className="block text-xs text-text-muted mb-1">Duration</label>
-            <div className="flex gap-1">
-              {durationOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setGameSettings({ duration: option.value })}
-                  className={`
-                    flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors
-                    ${
-                      gameSettings.duration === option.value
-                        ? 'bg-primary text-white'
-                        : 'bg-bg-cell text-text-secondary hover:bg-bg-cell-hover'
-                    }
-                  `}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Grid Size */}
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Grid Size</label>
-            <div className="flex gap-1">
-              {GRID_SIZE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setGameSettings({ gridSize: option.value })}
-                  className={`
-                    flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors
-                    ${
-                      gameSettings.gridSize === option.value
-                        ? 'bg-primary text-white'
-                        : 'bg-bg-cell text-text-secondary hover:bg-bg-cell-hover'
-                    }
-                  `}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+        {/* Duration */}
+        <div className="mb-3">
+          <label className="block text-xs text-text-muted mb-1">Duration</label>
+          <div className="flex gap-1">
+            {durationOptions.map((option) => (
+              <button
+                key={option.value}
+                disabled={!isHost}
+                onClick={() => isHost && setGameSettings({ duration: option.value })}
+                className={`
+                  flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors
+                  ${
+                    gameSettings.duration === option.value
+                      ? 'bg-primary text-white'
+                      : 'bg-bg-cell text-text-secondary'
+                  }
+                  ${!isHost ? 'cursor-default opacity-80' : 'hover:bg-bg-cell-hover'}
+                `}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
-      )}
+
+        {/* Grid Size */}
+        <div>
+          <label className="block text-xs text-text-muted mb-1">Grid Size</label>
+          <div className="flex gap-1">
+            {GRID_SIZE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                disabled={!isHost}
+                onClick={() => isHost && setGameSettings({ gridSize: option.value })}
+                className={`
+                  flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors
+                  ${
+                    gameSettings.gridSize === option.value
+                      ? 'bg-primary text-white'
+                      : 'bg-bg-cell text-text-secondary'
+                  }
+                  ${!isHost ? 'cursor-default opacity-80' : 'hover:bg-bg-cell-hover'}
+                `}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Status message */}
       <div className="text-center mb-4">
