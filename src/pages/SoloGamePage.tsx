@@ -9,6 +9,7 @@ import { useGameStore } from '@/stores/useGameStore';
 import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useHaptics } from '@/hooks/useHaptics';
 import { generateGrid, getWordPoints } from '@/games/wordtrace/utils';
 import { getGamePaths } from '@/games/registry';
 import { DICTIONARY } from '@/lib/dictionary';
@@ -23,6 +24,7 @@ export function SoloGamePage() {
   const navigate = useNavigate();
   const timerRef = useRef<number | null>(null);
   const { play: playSound } = useSoundEffects();
+  const { vibrate } = useHaptics();
 
   const { playerName } = useRoomStore();
   const {
@@ -90,6 +92,7 @@ export function SoloGamePage() {
   const handleCountdownComplete = useCallback(() => {
     setPhase('playing');
     playSound('gameStart');
+    vibrate('gameStart');
 
     // Start timer
     timerRef.current = window.setInterval(() => {
@@ -102,10 +105,11 @@ export function SoloGamePage() {
           timerRef.current = null;
         }
         playSound('gameEnd');
+        vibrate('gameEnd');
         setPhase('finished');
       }
     }, 1000);
-  }, [setPhase, setTimeRemaining, playSound]);
+  }, [setPhase, setTimeRemaining, playSound, vibrate]);
 
   // Handle word submission
   const handleWordSubmit = useCallback(
@@ -115,6 +119,7 @@ export function SoloGamePage() {
       // Check if already found
       if (myWords.includes(word)) {
         playSound('wordInvalid');
+        vibrate('wordInvalid');
         setFeedback({ message: 'Already found!', type: 'error' });
         return;
       }
@@ -122,6 +127,7 @@ export function SoloGamePage() {
       // Check minimum length
       if (word.length < 3) {
         playSound('wordInvalid');
+        vibrate('wordInvalid');
         setFeedback({ message: 'Too short', type: 'error' });
         return;
       }
@@ -129,12 +135,14 @@ export function SoloGamePage() {
       // Check dictionary
       if (!DICTIONARY.has(word)) {
         playSound('wordInvalid');
+        vibrate('wordInvalid');
         setFeedback({ message: 'Not a word', type: 'error' });
         return;
       }
 
       // Valid word!
       playSound('wordValid');
+      vibrate('wordValid');
       const points = getWordPoints(word);
       addFoundWord(playerId, word);
       updatePlayerScore(
@@ -147,7 +155,7 @@ export function SoloGamePage() {
         type: 'success',
       });
     },
-    [foundWords, scores, wordCounts, addFoundWord, updatePlayerScore, setFeedback, playSound]
+    [foundWords, scores, wordCounts, addFoundWord, updatePlayerScore, setFeedback, playSound, vibrate]
   );
 
   // Handle play again - reinitialize the game

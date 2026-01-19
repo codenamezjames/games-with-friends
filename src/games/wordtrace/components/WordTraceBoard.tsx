@@ -14,6 +14,7 @@ import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useRoom } from '@/hooks/useRoom';
 import { useHostSubmissionListener } from '@/hooks/useGameListeners';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useHaptics } from '@/hooks/useHaptics';
 import { getGamePaths } from '@/games/registry';
 import { WordTraceGame } from '@/games/wordtrace/WordTraceGame';
 import { getWordPoints } from '@/games/wordtrace/utils';
@@ -46,6 +47,7 @@ export function WordTraceBoard() {
   const { updateGameState, updateGameStateFields, submitWord, deleteSubmission } =
     useRoom();
   const { play: playSound } = useSoundEffects();
+  const { vibrate } = useHaptics();
 
   const [showCountdown, setShowCountdown] = useState(false);
 
@@ -95,6 +97,7 @@ export function WordTraceBoard() {
     hasEndedRef.current = true;
 
     playSound('gameEnd');
+    vibrate('gameEnd');
     gameRef.current.phase = 'finished';
     const gameResults = gameRef.current.calculateResults();
 
@@ -109,13 +112,14 @@ export function WordTraceBoard() {
     // Navigate to results page
     const paths = getGamePaths(gameType);
     navigate(paths.results);
-  }, [setPhase, setResults, updateGameState, playSound, navigate, gameType]);
+  }, [setPhase, setResults, updateGameState, playSound, vibrate, navigate, gameType]);
 
   // Handle countdown complete
   const handleCountdownComplete = useCallback(() => {
     setShowCountdown(false);
     setPhase('playing');
     playSound('gameStart');
+    vibrate('gameStart');
 
     // Guard: don't start another timer if one is already running
     if (isHost && gameRef.current && !timerRef.current) {
@@ -142,7 +146,7 @@ export function WordTraceBoard() {
         }
       }, 1000);
     }
-  }, [isHost, setPhase, setTimeRemaining, updateGameStateFields, playSound, handleGameEnd]);
+  }, [isHost, setPhase, setTimeRemaining, updateGameStateFields, playSound, vibrate, handleGameEnd]);
 
   // Resume timer for host rejoining mid-game or taking over from disconnected host
   // This runs when isHost becomes true during an active game
@@ -254,6 +258,7 @@ export function WordTraceBoard() {
 
         if (result.success) {
           playSound('wordValid');
+          vibrate('wordValid');
           addFoundWord(playerId, word);
           updatePlayerScore(playerId, result.newScore!, result.wordCount!);
           setFeedback({
@@ -265,6 +270,7 @@ export function WordTraceBoard() {
           await updateGameState(gameRef.current.getSerializableState());
         } else {
           playSound('wordInvalid');
+          vibrate('wordInvalid');
           const messages: Record<string, string> = {
             ALREADY_FOUND: 'Already found!',
             NOT_IN_DICTIONARY: 'Not a word',
@@ -284,22 +290,26 @@ export function WordTraceBoard() {
         const myWords = foundWords[playerId] || [];
         if (myWords.includes(word)) {
           playSound('wordInvalid');
+          vibrate('wordInvalid');
           setFeedback({ message: 'Already found!', type: 'error' });
           return;
         }
         if (word.length < 3) {
           playSound('wordInvalid');
+          vibrate('wordInvalid');
           setFeedback({ message: 'Too short', type: 'error' });
           return;
         }
         if (!DICTIONARY.has(word)) {
           playSound('wordInvalid');
+          vibrate('wordInvalid');
           setFeedback({ message: 'Not a word', type: 'error' });
           return;
         }
 
         // Optimistic UI update
         playSound('wordValid');
+        vibrate('wordValid');
         const points = getWordPoints(word);
         addFoundWord(playerId, word);
         updatePlayerScore(
@@ -328,6 +338,7 @@ export function WordTraceBoard() {
       updateGameState,
       submitWord,
       playSound,
+      vibrate,
     ]
   );
 

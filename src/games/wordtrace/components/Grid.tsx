@@ -3,6 +3,7 @@ import { Cell } from './Cell';
 import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useGameStore } from '@/stores/useGameStore';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useHaptics } from '@/hooks/useHaptics';
 import { isAdjacent, getWordFromPath } from '@/games/wordtrace/utils';
 
 interface GridProps {
@@ -107,6 +108,7 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
     endTrace,
   } = useLocalGameStore();
   const { play } = useSoundEffects();
+  const { vibrate } = useHaptics();
 
   const isDisabled = phase !== 'playing' || disabled;
 
@@ -114,9 +116,10 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
     (index: number) => {
       if (isDisabled) return;
       play('tileSelect');
+      vibrate('tileSelect');
       startTrace(index);
     },
-    [isDisabled, startTrace, play]
+    [isDisabled, startTrace, play, vibrate]
   );
 
   // Track last cell to avoid duplicate processing
@@ -147,6 +150,7 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
         const bestIndex = findBestAdjacentCell(lastIndex, index, movementAngleRef.current, gridSize, currentPath);
         if (bestIndex !== null && !currentPath.includes(bestIndex)) {
           play('tileSelect');
+          vibrate('tileSelect');
           addToPath(bestIndex);
         }
         return;
@@ -155,10 +159,11 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
       // Normal adjacency check for mouse hover
       if (isAdjacent(lastIndex, index, gridSize)) {
         play('tileSelect');
+        vibrate('tileSelect');
         addToPath(index);
       }
     },
-    [isTracing, isDisabled, currentPath, removeLastFromPath, addToPath, play, gridSize]
+    [isTracing, isDisabled, currentPath, removeLastFromPath, addToPath, play, vibrate, gridSize]
   );
 
   // Handle pointer move for touch dragging (pointerenter doesn't fire during touch drag)
