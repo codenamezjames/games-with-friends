@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { Button } from './Button';
+import { useRoomStore } from '@/stores/useRoomStore';
+import { DURATION_OPTIONS, GRID_SIZE_OPTIONS, TEST_DURATION_OPTION } from '@/types';
 import type { Player } from '@/types';
 
 interface ReadyCheckPanelProps {
@@ -25,6 +27,19 @@ export function ReadyCheckPanel({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [autoStartCountdown, setAutoStartCountdown] = useState<number | null>(null);
   const hasStartedRef = useRef(false);
+
+  const { gameSettings, setGameSettings, players: storePlayers, playerId } = useRoomStore();
+
+  // Get local player's name for test duration option
+  const localPlayerName = playerId ? storePlayers[playerId]?.name : null;
+
+  // Show test duration option on localhost or if player name is "jamez"
+  const durationOptions = useMemo(() => {
+    const isLocalhost = typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const isJamez = localPlayerName?.toLowerCase() === 'jamez';
+    return (isLocalhost || isJamez) ? [TEST_DURATION_OPTION, ...DURATION_OPTIONS] : DURATION_OPTIONS;
+  }, [localPlayerName]);
 
   // Get active (non-spectator, connected) players
   // Filter out disconnected players so they don't block ready check
@@ -143,6 +158,59 @@ export function ReadyCheckPanel({
           );
         })}
       </div>
+
+      {/* Game Settings - Host only */}
+      {isHost && (
+        <div className="mb-4 pt-3 border-t border-white/10">
+          <h4 className="text-sm font-medium text-text-muted mb-2">Next Round Settings</h4>
+
+          {/* Duration */}
+          <div className="mb-3">
+            <label className="block text-xs text-text-muted mb-1">Duration</label>
+            <div className="flex gap-1">
+              {durationOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setGameSettings({ duration: option.value })}
+                  className={`
+                    flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors
+                    ${
+                      gameSettings.duration === option.value
+                        ? 'bg-primary text-white'
+                        : 'bg-bg-cell text-text-secondary hover:bg-bg-cell-hover'
+                    }
+                  `}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Grid Size */}
+          <div>
+            <label className="block text-xs text-text-muted mb-1">Grid Size</label>
+            <div className="flex gap-1">
+              {GRID_SIZE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setGameSettings({ gridSize: option.value })}
+                  className={`
+                    flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors
+                    ${
+                      gameSettings.gridSize === option.value
+                        ? 'bg-primary text-white'
+                        : 'bg-bg-cell text-text-secondary hover:bg-bg-cell-hover'
+                    }
+                  `}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status message */}
       <div className="text-center mb-4">
