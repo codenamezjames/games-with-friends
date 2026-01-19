@@ -3,6 +3,7 @@
  */
 
 export * from './firebase';
+export * from './word-finder';
 
 /**
  * Retry a function until it succeeds or times out.
