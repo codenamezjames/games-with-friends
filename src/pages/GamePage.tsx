@@ -6,6 +6,7 @@ import { WordTraceBoard } from '@/games/wordtrace/components/WordTraceBoard';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
 import { useLocalGameStore } from '@/stores/useLocalGameStore';
+import { useToastStore } from '@/stores/useToastStore';
 import { useGameListeners } from '@/hooks/useGameListeners';
 import { useRoom } from '@/hooks/useRoom';
 import { usePresence } from '@/hooks/usePresence';
@@ -129,6 +130,10 @@ export function GamePage() {
           if (isHostInFirebase !== currentIsHost) {
             console.log('[GamePage] Updating isHost from', currentIsHost, 'to', isHostInFirebase);
             setIsHost(isHostInFirebase);
+            // Notify user if they became host
+            if (isHostInFirebase && !currentIsHost) {
+              useToastStore.getState().addToast('You are now the host!', 'info');
+            }
           }
         }
 

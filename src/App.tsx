@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { useGameStore } from '@/stores/useGameStore';
 import { getAvailableGames, getGameRoutes, getGamePaths } from '@/games/registry';
+import { ToastContainer } from '@/components/common/Toast';
 
 // Import game modules to register them (side effect)
 import '@/games/wordtrace';
@@ -96,6 +97,7 @@ function App() {
     <BrowserRouter>
       <AppContent />
       <TestResultsNavigator />
+      <ToastContainer />
     </BrowserRouter>
   );
 }

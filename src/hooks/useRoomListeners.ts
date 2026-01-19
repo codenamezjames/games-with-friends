@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '@/lib/firebase';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
+import { useToastStore } from '@/stores/useToastStore';
 import { useRoom } from '@/hooks/useRoom';
 import { getGamePaths } from '@/games/registry';
 import type { Player, RoomStatus } from '@/types';
@@ -123,6 +124,10 @@ export function useRoomListeners() {
           if (isHostInFirebase !== currentIsHost) {
             console.log('[useRoomListeners] Updating isHost from', currentIsHost, 'to', isHostInFirebase);
             setIsHost(isHostInFirebase);
+            // Notify user if they became host
+            if (isHostInFirebase && !currentIsHost) {
+              useToastStore.getState().addToast('You are now the host!', 'info');
+            }
           }
         }
 
