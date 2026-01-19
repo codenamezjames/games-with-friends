@@ -41,7 +41,8 @@ export class ResultsPage extends BasePage {
     // Ready check panel elements
     this.readyCheckPanel = page.getByRole('heading', { name: 'Ready for Rematch?' }).locator('..');
     this.readyCheckTitle = page.getByRole('heading', { name: 'Ready for Rematch?' });
-    this.readyCheckbox = page.locator('input[type="checkbox"]').first();
+    // Find the checkbox in the row that contains "(You)" - this is the local player's checkbox
+    this.readyCheckbox = page.locator('label').filter({ hasText: '(You)' }).locator('input[type="checkbox"]');
     this.startAnywayButton = page.getByRole('button', { name: /Start Anyway/ });
     this.readyCountdown = page.getByText(/\d+s remaining/);
 

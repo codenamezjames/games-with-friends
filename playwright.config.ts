@@ -1,8 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Check if we should use Firebase emulators
+const useEmulators = process.env.USE_FIREBASE_EMULATORS === 'true';
+
 /**
  * Playwright configuration for Word Trace e2e tests.
  * See https://playwright.dev/docs/test-configuration
+ *
+ * To run with Firebase emulators (recommended for avoiding rate limits):
+ *   USE_FIREBASE_EMULATORS=true npm run test:e2e
+ *
+ * Or use the npm script:
+ *   npm run test:e2e:emulators
  */
 export default defineConfig({
   // Test directory
@@ -17,8 +26,8 @@ export default defineConfig({
   // Retry on CI only
   retries: process.env.CI ? 2 : 0,
 
-  // Limit workers to avoid Firebase rate limiting and dev server overload
-  workers: process.env.CI ? 1 : 3,
+  // Limit workers - with emulators we can run more in parallel
+  workers: useEmulators ? 4 : (process.env.CI ? 1 : 3),
 
   // Reporter to use
   reporter: [
@@ -69,11 +78,29 @@ export default defineConfig({
     // },
   ],
 
-  // Run local dev server before starting the tests
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:8877',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000, // 2 minutes to start
-  },
+  // Run servers before starting the tests
+  webServer: useEmulators
+    ? [
+        // Firebase emulators (auth + database)
+        {
+          command: 'npx firebase emulators:start --only auth,database',
+          url: 'http://127.0.0.1:9099',
+          reuseExistingServer: !process.env.CI,
+          timeout: 60000,
+        },
+        // Dev server with emulator env var (uses .env.test)
+        {
+          command: 'npx vite --mode test --port 8877',
+          url: 'http://localhost:8877',
+          reuseExistingServer: !process.env.CI,
+          timeout: 120000,
+        },
+      ]
+    : {
+        // Just the dev server (uses production Firebase)
+        command: 'npm run dev',
+        url: 'http://localhost:8877',
+        reuseExistingServer: !process.env.CI,
+        timeout: 120000,
+      },
 });

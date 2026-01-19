@@ -25,7 +25,7 @@ type Speed = 'normal' | 'fast';
 
 export function ResultsPage() {
   const navigate = useNavigate();
-  const { results, foundWords, grid, gridSize, resetGame, setGrid, setGridSize, setDuration, setPhase: setGamePhase, setStartTime, setTimeRemaining } = useGameStore();
+  const { results, foundWords, grid, gridSize, resetGame, setGrid, setGridSize, setDuration, setPhase: setGamePhase, setStartTime, setTimeRemaining, phase: gamePhase } = useGameStore();
   const { players, playerId: localPlayerId, isHost, isSpectator, roomCode, gameSettings } = useRoomStore();
   const { setReadyForRematch, clearRematchReady, startGame, updateGameState } = useRoom();
 
@@ -52,12 +52,17 @@ export function ResultsPage() {
     speedRef.current = speed;
   }, [speed]);
 
-  // Redirect if no results (unless intentionally leaving via Play Again)
+  // Redirect if no results (unless intentionally leaving via Play Again or a rematch is starting)
   useEffect(() => {
-    if (!results && !isLeavingRef.current) {
+    // Don't redirect if:
+    // - We have results
+    // - We're intentionally leaving (Play Again clicked)
+    // - A rematch is starting (phase is countdown/playing) - useGameListeners will handle navigation
+    const isRematchStarting = gamePhase === 'countdown' || gamePhase === 'playing';
+    if (!results && !isLeavingRef.current && !isRematchStarting) {
       navigate('/');
     }
-  }, [results, navigate]);
+  }, [results, navigate, gamePhase]);
 
   // Prepare word sequence
   const wordSequence = useMemo(() => {
@@ -178,12 +183,16 @@ export function ResultsPage() {
     try {
       // Build update object for player status
       const playerUpdates: Record<string, boolean> = {};
+      const currentPlayerId = useRoomStore.getState().playerId;
 
       Object.entries(currentPlayers).forEach(([playerId, player]) => {
         if (player.isSpectator) return; // Skip existing spectators
 
-        if (markUnreadyAsSpectators && !player.readyForRematch) {
-          // Mark unready players as spectators
+        // Never mark the host (who is starting the game) as spectator
+        const isCurrentPlayer = playerId === currentPlayerId;
+
+        if (markUnreadyAsSpectators && !player.readyForRematch && !isCurrentPlayer) {
+          // Mark unready players as spectators (except the host who clicked Start Anyway)
           playerUpdates[`players/${playerId}/isSpectator`] = true;
         } else {
           // Set isReady to true for all players who will play (for startGame check)

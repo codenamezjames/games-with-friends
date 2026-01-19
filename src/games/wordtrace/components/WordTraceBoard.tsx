@@ -204,6 +204,44 @@ export function WordTraceBoard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHost, phase, showCountdown]);
 
+  // Guest fallback: navigate to results if game should have ended but host hasn't triggered it
+  // This handles the case where host disconnects during gameplay
+  const guestFallbackRef = useRef<number | null>(null);
+  useEffect(() => {
+    // Only for non-hosts during 'playing' phase
+    if (isHost || phase !== 'playing') {
+      if (guestFallbackRef.current) {
+        clearTimeout(guestFallbackRef.current);
+        guestFallbackRef.current = null;
+      }
+      return;
+    }
+
+    // When timer reaches 0, start grace period
+    if (timeRemaining <= 0 && !hasEndedRef.current) {
+      console.log('[WordTraceBoard] Guest detected timer at 0, starting fallback timer');
+
+      // Wait 5 seconds for host to end the game
+      guestFallbackRef.current = window.setTimeout(() => {
+        const currentPhase = useGameStore.getState().phase;
+        if (currentPhase === 'playing' && !hasEndedRef.current) {
+          console.log('[WordTraceBoard] Guest fallback: host did not end game, navigating to results');
+          hasEndedRef.current = true;
+          playSound('gameEnd');
+          const paths = getGamePaths(gameType);
+          navigate(paths.results);
+        }
+      }, 5000);
+    }
+
+    return () => {
+      if (guestFallbackRef.current) {
+        clearTimeout(guestFallbackRef.current);
+        guestFallbackRef.current = null;
+      }
+    };
+  }, [isHost, phase, timeRemaining, navigate, gameType, playSound]);
+
   // Handle word submission
   const handleWordSubmit = useCallback(
     async (word: string, path: number[]) => {

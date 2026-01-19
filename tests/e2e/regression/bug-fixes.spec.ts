@@ -63,10 +63,7 @@ async function setupGameToResults(browser: any) {
 
 test.describe('Ready Check Flow', () => {
   // Uses 10s test duration on localhost for fast tests
-  // TODO: Flaky due to host disconnect during game - needs investigation
-  // When host browser context becomes disconnected during gameplay, game never ends
-  // because only host can trigger handleGameEnd() and set phase to 'finished'
-  test.skip('ready check panel shows for both players after game ends', async ({ browser }) => {
+  test('ready check panel shows for both players after game ends', async ({ browser }) => {
     test.setTimeout(90000);
 
     const {
@@ -99,8 +96,7 @@ test.describe('Ready Check Flow', () => {
     }
   });
 
-  test.skip('all players marking ready triggers auto-start', async ({ browser }) => {
-    // TODO: Fix Firebase sync timing issues with ready check
+  test('all players marking ready triggers auto-start', async ({ browser }) => {
     test.setTimeout(90000);
 
     const {
@@ -126,14 +122,14 @@ test.describe('Ready Check Flow', () => {
       // Verify we can see 2 players on host side (look for "X of 2 ready")
       await expect(hostPage.getByText(/of 2 ready/)).toBeVisible({ timeout: 5000 });
 
-      // Both players mark ready
-      await hostResults.markReady();
-      await guestResults.markReady();
+      // Both players mark ready (do in parallel for speed)
+      await Promise.all([
+        hostResults.markReady(),
+        guestResults.markReady(),
+      ]);
 
-      // Wait for Firebase sync
-      await hostPage.waitForTimeout(1000);
-
-      // Should auto-start and navigate to game page
+      // The auto-start countdown (2s) may complete before we can assert "2 of 2 ready",
+      // so just wait for the game to start (which is the actual test purpose)
       await Promise.all([
         hostResults.waitForAutoStart(15000),
         guestResults.waitForAutoStart(15000),
@@ -148,8 +144,7 @@ test.describe('Ready Check Flow', () => {
     }
   });
 
-  test.skip('host can start anyway with unready players', async ({ browser }) => {
-    // TODO: Fix Firebase sync timing issues with ready check
+  test('host can start anyway with unready players', async ({ browser }) => {
     test.setTimeout(90000);
 
     const {
@@ -170,7 +165,14 @@ test.describe('Ready Check Flow', () => {
       ]);
 
       // Wait for players to be loaded (should show "X of 2 ready")
-      await expect(hostPage.getByText(/of 2 ready/)).toBeVisible({ timeout: 10000 });
+      // Check on both pages to ensure Firebase sync is complete
+      await Promise.all([
+        expect(hostPage.getByText(/of 2 ready/)).toBeVisible({ timeout: 10000 }),
+        expect(guestPage.getByText(/of 2 ready/)).toBeVisible({ timeout: 10000 }),
+      ]);
+
+      // Ensure both players are still showing
+      await expect(hostPage.getByText('0 of 2 ready')).toBeVisible({ timeout: 5000 });
 
       // Host should see "Start Anyway" button (no one marked ready yet)
       await expect(hostResults.startAnywayButton).toBeVisible({ timeout: 5000 });
@@ -178,14 +180,15 @@ test.describe('Ready Check Flow', () => {
       // Host clicks Start Anyway
       await hostResults.startAnywayButton.click();
 
-      // Wait for navigation
+      // Wait for host navigation
       await hostPage.waitForURL(/\/games\/wordtrace\/play\/[A-Z0-9]+/, { timeout: 10000 });
 
       // Host should be on game page
       await expect(hostPage).toHaveURL(/\/games\/wordtrace\/play\/[A-Z0-9]+/);
 
       // Guest should also navigate to game page (as spectator)
-      await guestPage.waitForURL(/\/games\/wordtrace\/play\/[A-Z0-9]+/, { timeout: 15000 });
+      // Give more time for guest navigation since they need to receive Firebase update
+      await guestPage.waitForURL(/\/games\/wordtrace\/play\/[A-Z0-9]+/, { timeout: 20000 });
     } finally {
       await hostContext.close();
       await guestContext.close();
@@ -408,8 +411,7 @@ test.describe('Host Transfer and Reconnection', () => {
 });
 
 test.describe('Play Again Scenarios', () => {
-  test.skip('both players mark ready simultaneously', async ({ browser }) => {
-    // TODO: Fix Firebase sync timing issues with ready check
+  test('both players mark ready simultaneously', async ({ browser }) => {
     test.setTimeout(90000);
 
     const {
@@ -450,8 +452,7 @@ test.describe('Play Again Scenarios', () => {
     }
   });
 
-  test.skip('guest leaves during results, host can still start', async ({ browser }) => {
-    // TODO: Fix Firebase sync timing issues with ready check
+  test('guest leaves during results, host can still start', async ({ browser }) => {
     test.setTimeout(90000);
 
     const {
@@ -486,8 +487,7 @@ test.describe('Play Again Scenarios', () => {
     }
   });
 
-  test.skip('host leaves during results, guest sees leave room option', async ({ browser }) => {
-    // TODO: Fix Firebase sync timing issues with ready check
+  test('host leaves during results, guest sees leave room option', async ({ browser }) => {
     test.setTimeout(90000);
 
     const {
@@ -525,8 +525,7 @@ test.describe('Play Again Scenarios', () => {
     }
   });
 
-  test.skip('multiple consecutive rematches work correctly', async ({ browser }) => {
-    // TODO: Fix Firebase sync timing issues with ready check
+  test('multiple consecutive rematches work correctly', async ({ browser }) => {
     // Test that ready check flow can be used multiple times in a row
     test.setTimeout(180000);
 
@@ -621,8 +620,7 @@ test.describe('Play Again Scenarios', () => {
     }
   });
 
-  test.skip('ready check works after game with no words found', async ({ browser }) => {
-    // TODO: Fix Firebase sync timing issues with ready check
+  test('ready check works after game with no words found', async ({ browser }) => {
     // Edge case: results show immediately (no reveal phase) when no words found
     test.setTimeout(90000);
 

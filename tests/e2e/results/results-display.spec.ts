@@ -104,10 +104,11 @@ test.describe('Results Display', () => {
 
       // Results should be visible (either reveal or winner phase)
       // With a 10s game and random words, it may skip reveal if no valid words found
+      // Wait for either phase to be visible with a timeout
       const hostResults = new ResultsPage(hostPage);
-      const inReveal = await hostResults.isInRevealPhase();
-      const inWinner = await hostResults.isInWinnerPhase();
-      expect(inReveal || inWinner).toBe(true);
+      await expect(
+        hostResults.wordRevealHeader.or(hostResults.winnerAnnouncement)
+      ).toBeVisible({ timeout: 10000 });
     } finally {
       await hostContext.close();
       await guestContext.close();
@@ -163,16 +164,15 @@ test.describe('Results Display', () => {
 });
 
 test.describe('Results Navigation', () => {
-  // TODO: Skipped due to host disconnect during game - needs investigation
-  // The old "Play Again" button was replaced with a ready check system
-  // This test needs updating to use the new ready check flow
-  test.skip('play again starts new game via ready check', async ({ browser }) => {
+  // Tests the ready check rematch flow
+  test('play again starts new game via ready check', async ({ browser }) => {
     test.setTimeout(90000);
 
     const {
       hostContext,
       guestContext,
       hostPage,
+      guestPage,
       hostGame,
       guestGame,
     } = await startQuickGame(browser);
@@ -185,16 +185,25 @@ test.describe('Results Navigation', () => {
       ]);
 
       const hostResults = new ResultsPage(hostPage);
+      const guestResults = new ResultsPage(guestPage);
 
-      // Wait for winner phase (reveal may be quick with few/no words)
-      await hostResults.waitForWinnerPhase(30000);
+      // Wait for winner phase on both (reveal may be quick with few/no words)
+      await Promise.all([
+        hostResults.waitForWinnerPhase(30000),
+        guestResults.waitForWinnerPhase(30000),
+      ]);
 
-      // Mark ready for rematch
-      await hostResults.markReady();
+      // Both players mark ready for rematch
+      await Promise.all([
+        hostResults.markReady(),
+        guestResults.markReady(),
+      ]);
 
-      // Should auto-start since host is the only player who marked ready
-      // (if other player also marks ready, game starts)
-      await hostPage.waitForURL(/\/games\/wordtrace\/play\/[A-Z0-9]+/, { timeout: 15000 });
+      // Game should auto-start when all players are ready (2s countdown)
+      await Promise.all([
+        hostPage.waitForURL(/\/games\/wordtrace\/play\/[A-Z0-9]+/, { timeout: 15000 }),
+        guestPage.waitForURL(/\/games\/wordtrace\/play\/[A-Z0-9]+/, { timeout: 15000 }),
+      ]);
     } finally {
       await hostContext.close();
       await guestContext.close();

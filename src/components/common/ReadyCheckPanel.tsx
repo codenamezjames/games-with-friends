@@ -27,9 +27,10 @@ export function ReadyCheckPanel({
   const [autoStartCountdown, setAutoStartCountdown] = useState<number | null>(null);
   const hasStartedRef = useRef(false);
 
-  // Get active (non-spectator) players
+  // Get active (non-spectator, connected) players
+  // Filter out disconnected players so they don't block ready check
   const activePlayers = Object.entries(players).filter(
-    ([, p]) => !p.isSpectator
+    ([, p]) => !p.isSpectator && p.isConnected !== false
   );
 
   // Check if all players are ready
