@@ -23,7 +23,7 @@ export function GamePage() {
   const { roomCode, playerId, setPlayers, setIsHost, resetRoom } = useRoomStore();
   const { grid, phase, resetGame, gameType } = useGameStore();
   const { reset: resetLocalGame } = useLocalGameStore();
-  const { rejoinRoom, claimHost } = useRoom();
+  const { rejoinRoom, claimHost, leaveRoom } = useRoom();
   const [isRejoining, setIsRejoining] = useState(true);
   const [rejoinFailed, setRejoinFailed] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
@@ -81,9 +81,19 @@ export function GamePage() {
 
         // Find the current host
         const host = Object.values(players).find((p) => p.isHost);
+        const hostExists = !!host;
 
+        // Check if host left entirely (no host in players list)
+        if (!hostExists) {
+          console.log('[GamePage] No host found in room');
+          // Immediately try to claim host if we should be the new one
+          if (shouldBecomeHost(players, playerId)) {
+            console.log('[GamePage] Claiming host role (host left)');
+            claimHost();
+          }
+        }
         // Check if host is disconnected - handle host transfer
-        if (host?.isConnected === false) {
+        else if (host?.isConnected === false) {
           // Host is disconnected - start transfer timer if not already running
           if (!hostTransferTimerRef.current) {
             console.log('[GamePage] Host disconnected, starting transfer timer');
@@ -110,13 +120,15 @@ export function GamePage() {
             clearTimeout(hostTransferTimerRef.current);
             hostTransferTimerRef.current = null;
           }
+        }
 
-          // Update our local isHost state if we became host
-          if (playerId && players[playerId]?.isHost) {
-            const currentIsHost = useRoomStore.getState().isHost;
-            if (!currentIsHost) {
-              setIsHost(true);
-            }
+        // Always sync isHost state from Firebase
+        if (playerId && players[playerId]) {
+          const isHostInFirebase = players[playerId].isHost === true;
+          const currentIsHost = useRoomStore.getState().isHost;
+          if (isHostInFirebase !== currentIsHost) {
+            console.log('[GamePage] Updating isHost from', currentIsHost, 'to', isHostInFirebase);
+            setIsHost(isHostInFirebase);
           }
         }
 
@@ -292,11 +304,11 @@ export function GamePage() {
   }, [roomCode, urlRoomCode, navigate, isRejoining, rejoinFailed]);
 
   // Handle going home
-  const handleGoHome = useCallback(() => {
-    resetRoom();
+  const handleGoHome = useCallback(async () => {
     resetGame();
+    await leaveRoom();
     navigate('/');
-  }, [resetRoom, resetGame, navigate]);
+  }, [resetGame, leaveRoom, navigate]);
 
   // Handle retry
   const handleRetry = useCallback(() => {

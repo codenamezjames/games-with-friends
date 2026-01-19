@@ -27,7 +27,7 @@ export function ResultsPage() {
   const navigate = useNavigate();
   const { results, foundWords, grid, gridSize, resetGame, setGrid, setGridSize, setDuration, setPhase: setGamePhase, setStartTime, setTimeRemaining, phase: gamePhase } = useGameStore();
   const { players, playerId: localPlayerId, isHost, isSpectator, roomCode, gameSettings } = useRoomStore();
-  const { setReadyForRematch, clearRematchReady, startGame, updateGameState } = useRoom();
+  const { setReadyForRematch, clearRematchReady, startGame, updateGameState, leaveRoom } = useRoom();
 
   // Enable game state listeners for guests to receive rematch navigation
   useGameListeners();
@@ -268,10 +268,11 @@ export function ResultsPage() {
     }
   }, [clearRematchReady, gameSettings, setGrid, setGridSize, setDuration, setTimeRemaining, setGamePhase, setStartTime, startGame, updateGameState, navigate]);
 
-  const handleBackToLobby = useCallback(() => {
+  const handleBackToLobby = useCallback(async () => {
     resetGame();
+    await leaveRoom();
     navigate('/');
-  }, [resetGame, navigate]);
+  }, [resetGame, leaveRoom, navigate]);
 
   // Current word
   const currentWord = currentWordIndex >= 0 && currentWordIndex < wordSequence.length
