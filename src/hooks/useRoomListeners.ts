@@ -114,15 +114,15 @@ export function useRoomListeners() {
             clearTimeout(hostTransferTimerRef.current);
             hostTransferTimerRef.current = null;
           }
+        }
 
-          // Update our local isHost state based on Firebase data
-          if (playerId) {
-            const isHostInFirebase = players[playerId]?.isHost === true;
-            const currentIsHost = useRoomStore.getState().isHost;
-            if (isHostInFirebase !== currentIsHost) {
-              console.log('[useRoomListeners] Updating isHost from', currentIsHost, 'to', isHostInFirebase);
-              setIsHost(isHostInFirebase);
-            }
+        // Always sync isHost state from Firebase (moved outside branches)
+        if (playerId) {
+          const isHostInFirebase = players[playerId]?.isHost === true;
+          const currentIsHost = useRoomStore.getState().isHost;
+          if (isHostInFirebase !== currentIsHost) {
+            console.log('[useRoomListeners] Updating isHost from', currentIsHost, 'to', isHostInFirebase);
+            setIsHost(isHostInFirebase);
           }
         }
 
