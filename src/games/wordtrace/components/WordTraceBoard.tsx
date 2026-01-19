@@ -25,6 +25,7 @@ export function WordTraceBoard() {
   const gameRef = useRef<WordTraceGame | null>(null);
   const timerRef = useRef<number | null>(null);
   const hasEndedRef = useRef(false);
+  const countdownJustCompletedRef = useRef(false);
 
   const { playerId, isHost, isSpectator, players } = useRoomStore();
   const {
@@ -121,6 +122,9 @@ export function WordTraceBoard() {
     playSound('gameStart');
     vibrate('gameStart');
 
+    // Mark that countdown just completed - prevents useEffect from also starting timer
+    countdownJustCompletedRef.current = true;
+
     // Guard: don't start another timer if one is already running
     if (isHost && gameRef.current && !timerRef.current) {
       gameRef.current.phase = 'playing';
@@ -151,6 +155,12 @@ export function WordTraceBoard() {
   // Resume timer for host rejoining mid-game or taking over from disconnected host
   // This runs when isHost becomes true during an active game
   useEffect(() => {
+    // Skip if countdown just completed - handleCountdownComplete already started the timer
+    if (countdownJustCompletedRef.current) {
+      countdownJustCompletedRef.current = false;
+      return;
+    }
+
     // Clear any existing timer first to prevent duplicates
     if (timerRef.current) {
       console.log('[WordTraceBoard] Clearing existing timer before resume check');

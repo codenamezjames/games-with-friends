@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { ref, onValue, onChildRemoved } from 'firebase/database';
+import { ref, onValue, onChildRemoved, get } from 'firebase/database';
 import { useNavigate } from 'react-router-dom';
 import { db } from '@/lib/firebase';
 import { useRoomStore } from '@/stores/useRoomStore';
@@ -127,18 +127,36 @@ export function useRoomListeners() {
           if (!hostTransferTimerRef.current) {
             console.log('[useRoomListeners] Host disconnected, starting transfer timer');
             hostTransferTimerRef.current = setTimeout(async () => {
-              // Re-check if host is still disconnected
-              const currentPlayers = cachedPlayersRef.current;
-              const currentHost = Object.values(currentPlayers).find((p) => p.isHost);
-
-              if (currentHost && currentHost.isConnected === false) {
-                console.log('[useRoomListeners] Host still disconnected after grace period');
-                // Check if we should become the new host
-                if (shouldBecomeHost(currentPlayers, playerId)) {
-                  console.log('[useRoomListeners] Claiming host role');
-                  await claimHost();
-                }
+              // Fetch fresh data from Firebase to avoid race conditions with cached data
+              const currentRoomCode = useRoomStore.getState().roomCode;
+              if (!currentRoomCode) {
+                hostTransferTimerRef.current = null;
+                return;
               }
+
+              try {
+                const playersSnapshot = await get(ref(db, `rooms/${currentRoomCode}/players`));
+                const freshPlayers = playersSnapshot.val() as Record<string, Player> | null;
+
+                if (!freshPlayers) {
+                  hostTransferTimerRef.current = null;
+                  return;
+                }
+
+                const currentHost = Object.values(freshPlayers).find((p) => p.isHost);
+
+                if (currentHost && currentHost.isConnected === false) {
+                  console.log('[useRoomListeners] Host still disconnected after grace period (verified with fresh data)');
+                  // Check if we should become the new host
+                  if (shouldBecomeHost(freshPlayers, playerId)) {
+                    console.log('[useRoomListeners] Claiming host role');
+                    await claimHost();
+                  }
+                }
+              } catch (error) {
+                console.error('[useRoomListeners] Error checking host status:', error);
+              }
+
               hostTransferTimerRef.current = null;
             }, HOST_TRANSFER_DELAY_MS);
           }
