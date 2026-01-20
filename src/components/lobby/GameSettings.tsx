@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useRoomStore } from '@/stores/useRoomStore';
+import { useRoom } from '@/hooks/useRoom';
 import { DURATION_OPTIONS, GRID_SIZE_OPTIONS, TEST_DURATION_OPTION } from '@/types';
 
 interface GameSettingsProps {
@@ -7,7 +8,8 @@ interface GameSettingsProps {
 }
 
 export function GameSettings({ readOnly = false }: GameSettingsProps) {
-  const { gameSettings, setGameSettings, players, playerId } = useRoomStore();
+  const { gameSettings, players, playerId } = useRoomStore();
+  const { updateGameSettings } = useRoom();
 
   // Get local player's name
   const localPlayerName = playerId ? players[playerId]?.name : null;
@@ -35,7 +37,7 @@ export function GameSettings({ readOnly = false }: GameSettingsProps) {
             <button
               key={option.value}
               disabled={readOnly}
-              onClick={() => !readOnly && setGameSettings({ duration: option.value })}
+              onClick={() => !readOnly && updateGameSettings({ duration: option.value })}
               className={`
                 flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors
                 ${
@@ -60,7 +62,7 @@ export function GameSettings({ readOnly = false }: GameSettingsProps) {
             <button
               key={option.value}
               disabled={readOnly}
-              onClick={() => !readOnly && setGameSettings({ gridSize: option.value })}
+              onClick={() => !readOnly && updateGameSettings({ gridSize: option.value })}
               className={`
                 flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors
                 ${

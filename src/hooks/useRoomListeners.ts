@@ -250,7 +250,7 @@ export function useRoomListeners() {
       }
     );
 
-    // Listen to game settings changes (for rematch settings sync)
+    // Listen to game settings changes (for lobby and rematch settings sync)
     const gameSettingsRef = ref(db, `rooms/${roomCode}/metadata/gameSettings`);
     const unsubGameSettings = onValue(
       gameSettingsRef,
