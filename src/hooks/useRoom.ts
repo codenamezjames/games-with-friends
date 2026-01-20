@@ -464,6 +464,17 @@ export function useRoom() {
     []
   );
 
+  const updateResultsSpeed = useCallback(
+    async (speed: 'normal' | 'fast'): Promise<void> => {
+      const { roomCode, isHost } = useRoomStore.getState();
+      if (!roomCode || !isHost) return;
+
+      const speedRef = ref(db, `rooms/${roomCode}/metadata/resultsSpeed`);
+      await set(speedRef, speed);
+    },
+    []
+  );
+
   // Transfer host to another player
   const transferHost = useCallback(
     async (newHostId: string): Promise<void> => {
@@ -532,6 +543,7 @@ export function useRoom() {
     deleteSubmission,
     setRoomStatus,
     updateGameSettings,
+    updateResultsSpeed,
     transferHost,
     claimHost,
   };

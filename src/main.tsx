@@ -6,7 +6,7 @@ import { useGameStore } from './stores/useGameStore'
 import { useRoomStore } from './stores/useRoomStore'
 import { generateGridWithWords } from './games/wordtrace/utils'
 
-const VERSION = '1.7.1';
+const VERSION = '1.7.2';
 console.log(`[Word Trace] v${VERSION}`);
 
 // Debug function to test animated results screen

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ref, update } from 'firebase/database';
+import { ref, update, onValue } from 'firebase/database';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/common/Button';
 import { ReadyCheckPanel } from '@/components/common/ReadyCheckPanel';
@@ -27,7 +27,7 @@ export function ResultsPage() {
   const navigate = useNavigate();
   const { results, foundWords, grid, gridSize, resetGame, setGrid, setGridSize, setDuration, setPhase: setGamePhase, setStartTime, setTimeRemaining, phase: gamePhase } = useGameStore();
   const { players, playerId: localPlayerId, isHost, isSpectator, roomCode, gameSettings } = useRoomStore();
-  const { setReadyForRematch, clearRematchReady, startGame, updateGameState, leaveRoom } = useRoom();
+  const { setReadyForRematch, clearRematchReady, startGame, updateGameState, leaveRoom, updateResultsSpeed } = useRoom();
 
   // Enable game state listeners for guests to receive rematch navigation
   useGameListeners();
@@ -52,6 +52,21 @@ export function ResultsPage() {
   useEffect(() => {
     speedRef.current = speed;
   }, [speed]);
+
+  // Listen for speed changes from Firebase (synced by host)
+  useEffect(() => {
+    if (!roomCode) return;
+
+    const speedRef = ref(db, `rooms/${roomCode}/metadata/resultsSpeed`);
+    const unsubscribe = onValue(speedRef, (snapshot) => {
+      const firebaseSpeed = snapshot.val() as Speed | null;
+      if (firebaseSpeed) {
+        setSpeed(firebaseSpeed);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [roomCode]);
 
   // Redirect if no results (unless intentionally leaving via Play Again or a rematch is starting)
   useEffect(() => {
@@ -165,8 +180,13 @@ export function ResultsPage() {
 
   // Handlers
   const handleSpeedToggle = useCallback(() => {
-    setSpeed((prev) => (prev === 'normal' ? 'fast' : 'normal'));
-  }, []);
+    const newSpeed = speed === 'normal' ? 'fast' : 'normal';
+    setSpeed(newSpeed);
+    // Sync to Firebase if host (guests will receive via listener)
+    if (isHost) {
+      updateResultsSpeed(newSpeed);
+    }
+  }, [speed, isHost, updateResultsSpeed]);
 
   // Handle ready check toggle
   const handleReadyChange = useCallback(async (isReady: boolean) => {
@@ -317,11 +337,13 @@ export function ResultsPage() {
           <h1 className="text-2xl font-bold text-primary">Word Reveal</h1>
           <button
             onClick={handleSpeedToggle}
+            disabled={!isHost}
+            title={isHost ? 'Toggle speed' : 'Only host can change speed'}
             className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
               speed === 'fast'
                 ? 'bg-accent text-bg-main scale-110'
-                : 'bg-bg-cell text-text-secondary hover:bg-bg-cell-hover'
-            }`}
+                : 'bg-bg-cell text-text-secondary'
+            } ${isHost ? 'hover:bg-bg-cell-hover cursor-pointer' : 'opacity-70 cursor-default'}`}
           >
             {speed === 'fast' ? '2x' : '1x'}
           </button>
