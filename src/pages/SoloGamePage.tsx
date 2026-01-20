@@ -14,10 +14,19 @@ import { generateGrid, getWordPoints } from '@/games/wordtrace/utils';
 import { getGamePaths } from '@/games/registry';
 import { DICTIONARY } from '@/lib/dictionary';
 
-// Use shorter duration on localhost for testing
-const isLocalhost = typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const DEFAULT_DURATION = isLocalhost ? 10 : 120;
+const GRID_OPTIONS = [
+  { value: 4, label: '4×4', description: 'Quick & Easy' },
+  { value: 5, label: '5×5', description: 'Standard' },
+  { value: 6, label: '6×6', description: 'Challenge' },
+];
+
+const TIME_OPTIONS = [
+  { value: 60, label: '1:00', description: 'Sprint' },
+  { value: 120, label: '2:00', description: 'Standard' },
+  { value: 180, label: '3:00', description: 'Extended' },
+];
+
+const DEFAULT_DURATION = 120;
 const DEFAULT_GRID_SIZE = 5;
 
 export function SoloGamePage() {
@@ -52,22 +61,33 @@ export function SoloGamePage() {
 
   const playerId = 'solo-player';
 
+  // Setup state
+  const [selectedGridSize, setSelectedGridSize] = useState(DEFAULT_GRID_SIZE);
+  const [selectedDuration, setSelectedDuration] = useState(DEFAULT_DURATION);
+  const [isSetup, setIsSetup] = useState(true);
+
   // Derive showCountdown from phase
   const showCountdown = phase === 'countdown' && startTime !== null;
 
-  // Initialize solo game on mount
+  // Initialize to setup phase on mount
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
     resetGame();
     resetLocalGame();
+    setIsSetup(true);
+  }, [resetGame, resetLocalGame]);
 
-    const newGrid = generateGrid(DEFAULT_GRID_SIZE);
+  // Start game after setup
+  const handleStartGame = useCallback(() => {
+    setIsSetup(false);
+
+    const newGrid = generateGrid(selectedGridSize);
     setGrid(newGrid);
-    setGridSize(DEFAULT_GRID_SIZE);
-    setDuration(DEFAULT_DURATION);
-    setTimeRemaining(DEFAULT_DURATION);
+    setGridSize(selectedGridSize);
+    setDuration(selectedDuration);
+    setTimeRemaining(selectedDuration);
 
     // Initialize player score
     updatePlayerScore(playerId, 0, 0);
@@ -77,8 +97,8 @@ export function SoloGamePage() {
     setStartTime(countdownStart);
     setPhase('countdown');
   }, [
-    resetGame,
-    resetLocalGame,
+    selectedGridSize,
+    selectedDuration,
     setGrid,
     setGridSize,
     setDuration,
@@ -169,28 +189,33 @@ export function SoloGamePage() {
     [foundWords, scores, wordCounts, addFoundWord, updatePlayerScore, setFeedback, playSound, vibrate]
   );
 
-  // Handle play again - reinitialize the game
-  const handlePlayAgain = useCallback(() => {
+  // Handle play again - go back to setup or start immediately with same settings
+  const handlePlayAgain = useCallback((withSetup = false) => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
-    // Reset and start new game
+    // Reset game state
     resetGame();
     resetLocalGame();
 
-    const newGrid = generateGrid(DEFAULT_GRID_SIZE);
-    setGrid(newGrid);
-    setGridSize(DEFAULT_GRID_SIZE);
-    setDuration(DEFAULT_DURATION);
-    setTimeRemaining(DEFAULT_DURATION);
-    updatePlayerScore(playerId, 0, 0);
+    if (withSetup) {
+      setIsSetup(true);
+    } else {
+      // Start immediately with same settings
+      const newGrid = generateGrid(selectedGridSize);
+      setGrid(newGrid);
+      setGridSize(selectedGridSize);
+      setDuration(selectedDuration);
+      setTimeRemaining(selectedDuration);
+      updatePlayerScore(playerId, 0, 0);
 
-    const countdownStart = Date.now() + 3000;
-    setStartTime(countdownStart);
-    setPhase('countdown');
-  }, [resetGame, resetLocalGame, setGrid, setGridSize, setDuration, setTimeRemaining, updatePlayerScore, setStartTime, setPhase]);
+      const countdownStart = Date.now() + 3000;
+      setStartTime(countdownStart);
+      setPhase('countdown');
+    }
+  }, [resetGame, resetLocalGame, selectedGridSize, selectedDuration, setGrid, setGridSize, setDuration, setTimeRemaining, updatePlayerScore, setStartTime, setPhase]);
 
   // Handle back to menu
   const handleBackToMenu = useCallback(() => {
@@ -256,6 +281,76 @@ export function SoloGamePage() {
       // Clipboard failed
     }
   }, [myScore, myWordCount, myWords]);
+
+  // Setup screen
+  if (isSetup) {
+    return (
+      <div className="min-h-screen p-4 flex flex-col items-center justify-center">
+        <div className="bg-bg-card rounded-[var(--radius-default)] p-8 w-full max-w-md shadow-xl">
+          <h1 className="text-3xl font-bold text-center bg-gradient-to-br from-primary-light to-accent bg-clip-text text-transparent mb-2">
+            Solo Practice
+          </h1>
+          <p className="text-center text-text-muted mb-8">Choose your settings</p>
+
+          {/* Grid Size */}
+          <div className="mb-6">
+            <label className="block text-text-muted text-sm mb-3">Grid Size</label>
+            <div className="grid grid-cols-3 gap-2">
+              {GRID_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setSelectedGridSize(option.value)}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    selectedGridSize === option.value
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-transparent bg-bg-cell text-text-secondary hover:bg-bg-cell/80'
+                  }`}
+                >
+                  <div className="text-xl font-bold">{option.label}</div>
+                  <div className="text-xs opacity-70">{option.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Time */}
+          <div className="mb-8">
+            <label className="block text-text-muted text-sm mb-3">Time Limit</label>
+            <div className="grid grid-cols-3 gap-2">
+              {TIME_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setSelectedDuration(option.value)}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    selectedDuration === option.value
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-transparent bg-bg-cell text-text-secondary hover:bg-bg-cell/80'
+                  }`}
+                >
+                  <div className="text-xl font-bold">{option.label}</div>
+                  <div className="text-xs opacity-70">{option.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Start Button */}
+          <Button onClick={handleStartGame} className="w-full text-lg py-3">
+            Start Game
+          </Button>
+
+          {/* Back link */}
+          <Button
+            variant="link"
+            className="w-full mt-4"
+            onClick={handleBackToMenu}
+          >
+            Back to Menu
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-4 flex flex-col">
@@ -349,16 +444,21 @@ export function SoloGamePage() {
             {/* Actions */}
             <div className="flex flex-col gap-3">
               <div className="flex gap-3">
-                <Button onClick={handlePlayAgain} className="flex-1">
+                <Button onClick={() => handlePlayAgain(false)} className="flex-1">
                   Play Again
                 </Button>
-                <Button variant="secondary" onClick={handleBackToMenu} className="flex-1">
-                  Back to Menu
+                <Button variant="secondary" onClick={() => handlePlayAgain(true)} className="flex-1">
+                  Change Settings
                 </Button>
               </div>
-              <Button variant="secondary" onClick={handleShare} className="w-full">
-                {shareStatus === 'copied' ? 'Copied!' : shareStatus === 'shared' ? 'Shared!' : 'Share Results'}
-              </Button>
+              <div className="flex gap-3">
+                <Button variant="secondary" onClick={handleShare} className="flex-1">
+                  {shareStatus === 'copied' ? 'Copied!' : shareStatus === 'shared' ? 'Shared!' : 'Share'}
+                </Button>
+                <Button variant="link" onClick={handleBackToMenu} className="flex-1">
+                  Exit
+                </Button>
+              </div>
             </div>
           </div>
         </div>
