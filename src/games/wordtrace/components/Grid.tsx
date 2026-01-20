@@ -8,7 +8,7 @@ import { getWordFromPath } from '@/games/wordtrace/utils';
 
 // Selection tuning constants
 const INNER_HITBOX_RATIO = 0.75; // Only select when pointer is within inner 75% of cell
-const DWELL_TIME_MS = 40; // Must hover for 40ms before selecting
+const DWELL_TIME_MS = 10; // Must hover for 10ms before selecting
 
 interface CellAtPoint {
   index: number;
