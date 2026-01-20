@@ -16,7 +16,7 @@ export function Confetti() {
     const colors = ['#f4b942', '#4a90a4', '#5cb85c', '#d9534f', '#fff', '#6bb3c9'];
     const newPieces: ConfettiPiece[] = [];
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 80; i++) {
       newPieces.push({
         id: i,
         x: Math.random() * 100,

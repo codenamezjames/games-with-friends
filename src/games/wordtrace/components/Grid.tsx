@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo, useEffect } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { Cell } from './Cell';
 import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useGameStore } from '@/stores/useGameStore';
@@ -6,80 +6,52 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useHaptics } from '@/hooks/useHaptics';
 import { getWordFromPath } from '@/games/wordtrace/utils';
 
+/**
+ * Get the cell index at a given screen coordinate using browser hit testing.
+ * Returns null if no cell is found at the position.
+ */
+function getCellIndexAtPoint(x: number, y: number): number | null {
+  const element = document.elementFromPoint(x, y);
+  if (!element) return null;
+
+  // Walk up to find element with data-index (in case we hit a child)
+  const cell = element.closest('[data-index]');
+  if (!cell) return null;
+
+  const index = cell.getAttribute('data-index');
+  return index !== null ? parseInt(index, 10) : null;
+}
+
+/**
+ * Check if two cell indices are adjacent (including diagonals).
+ */
+function isAdjacent(index1: number, index2: number, gridSize: number): boolean {
+  const row1 = Math.floor(index1 / gridSize);
+  const col1 = index1 % gridSize;
+  const row2 = Math.floor(index2 / gridSize);
+  const col2 = index2 % gridSize;
+
+  const rowDiff = Math.abs(row1 - row2);
+  const colDiff = Math.abs(col1 - col2);
+
+  // Adjacent means within 1 step in any direction (including diagonal)
+  return rowDiff <= 1 && colDiff <= 1 && !(rowDiff === 0 && colDiff === 0);
+}
+
 interface GridProps {
   onWordSubmit: (word: string, path: number[]) => void;
   disabled?: boolean;
   isSpectator?: boolean;
 }
 
-const CELL_GAP = 8; // gap-2 = 0.5rem = 8px
-
-function getCellCenter(index: number, cellSize: number, gridSize: number): { x: number; y: number } {
-  const row = Math.floor(index / gridSize);
-  const col = index % gridSize;
-  const x = col * (cellSize + CELL_GAP) + cellSize / 2;
-  const y = row * (cellSize + CELL_GAP) + cellSize / 2;
-  return { x, y };
-}
-
-// Find the closest adjacent cell to the pointer position
-function findClosestAdjacentCell(
-  fromIndex: number,
-  pointerX: number,
-  pointerY: number,
-  gridSize: number,
-  cellSize: number,
-  gridRect: DOMRect,
-  currentPath: number[]
-): number | null {
-  const fromRow = Math.floor(fromIndex / gridSize);
-  const fromCol = fromIndex % gridSize;
-
-  // Convert pointer position to grid-relative coordinates
-  const relX = pointerX - gridRect.left;
-  const relY = pointerY - gridRect.top;
-
-  // Find the closest adjacent cell
-  let closestIndex: number | null = null;
-  let closestDistance = Infinity;
-
-  for (let dRow = -1; dRow <= 1; dRow++) {
-    for (let dCol = -1; dCol <= 1; dCol++) {
-      if (dRow === 0 && dCol === 0) continue;
-
-      const newRow = fromRow + dRow;
-      const newCol = fromCol + dCol;
-
-      if (newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize) {
-        const index = newRow * gridSize + newCol;
-
-        // Skip cells already in path
-        if (currentPath.includes(index)) continue;
-
-        // Calculate cell center position
-        const cellCenter = getCellCenter(index, cellSize, gridSize);
-
-        // Calculate distance from pointer to cell center
-        const dx = relX - cellCenter.x;
-        const dy = relY - cellCenter.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        // Selection threshold - must be within 40% of cell size from center (60% of the way to center)
-        const threshold = cellSize * 0.4;
-
-        if (distance < threshold && distance < closestDistance) {
-          closestDistance = distance;
-          closestIndex = index;
-        }
-      }
-    }
-  }
-
-  return closestIndex;
-}
-
 export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: GridProps) {
-  const gridRef = useRef<HTMLDivElement>(null);
+  const gridRef = useCallback((node: HTMLDivElement | null) => {
+    // Store ref for future use
+    if (node) {
+      // Could measure actual cell sizes here if needed
+    }
+  }, []);
+
   const { grid, gridSize, phase } = useGameStore();
   const {
     currentPath,
@@ -90,19 +62,22 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
     clearPath,
     endTrace,
   } = useLocalGameStore();
+
+  // Track last selected cell to avoid duplicate processing
+  const lastSelectedRef = useRef<number | null>(null);
+
+  // Reset ref when trace ends
+  useEffect(() => {
+    if (!isTracing) {
+      lastSelectedRef.current = null;
+    }
+  }, [isTracing]);
   const { play } = useSoundEffects();
   const { vibrate } = useHaptics();
 
   const isDisabled = phase !== 'playing' || disabled;
 
-  // Calculate cell size based on grid size (smaller cells for larger grids)
-  // Must be before callbacks that use it
-  const cellSize = useMemo(() => {
-    if (gridSize === 4) return 70;
-    if (gridSize === 5) return 60;
-    return 50; // 6x6
-  }, [gridSize]);
-
+  // Tap to start trace
   const handlePointerDown = useCallback(
     (index: number) => {
       if (isDisabled) return;
@@ -113,64 +88,7 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
     [isDisabled, startTrace, play, vibrate]
   );
 
-  // Track last selected cell to avoid duplicate processing
-  const lastSelectedRef = useRef<number | null>(null);
-
-  // Handle pointer move for touch dragging - uses proximity-based selection
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!isTracing || isDisabled || !gridRef.current) return;
-
-      const gridRect = gridRef.current.getBoundingClientRect();
-      const lastIndex = currentPath[currentPath.length - 1];
-
-      // Check for backtracking first - if pointer is near the second-to-last cell
-      if (currentPath.length >= 2) {
-        const secondLastIndex = currentPath[currentPath.length - 2];
-        const secondLastCenter = getCellCenter(secondLastIndex, cellSize, gridSize);
-        const relX = e.clientX - gridRect.left;
-        const relY = e.clientY - gridRect.top;
-        const dx = relX - secondLastCenter.x;
-        const dy = relY - secondLastCenter.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < cellSize * 0.4) {
-          if (lastSelectedRef.current !== secondLastIndex) {
-            removeLastFromPath();
-            lastSelectedRef.current = secondLastIndex;
-          }
-          return;
-        }
-      }
-
-      // Find the closest adjacent cell to select
-      const closestIndex = findClosestAdjacentCell(
-        lastIndex,
-        e.clientX,
-        e.clientY,
-        gridSize,
-        cellSize,
-        gridRect,
-        currentPath
-      );
-
-      if (closestIndex !== null && closestIndex !== lastSelectedRef.current) {
-        play('tileSelect');
-        vibrate('tileSelect');
-        addToPath(closestIndex);
-        lastSelectedRef.current = closestIndex;
-      }
-    },
-    [isTracing, isDisabled, currentPath, cellSize, gridSize, removeLastFromPath, addToPath, play, vibrate]
-  );
-
-  // Reset refs when trace ends
-  useEffect(() => {
-    if (!isTracing) {
-      lastSelectedRef.current = null;
-    }
-  }, [isTracing]);
-
+  // End trace and submit word
   const handlePointerUp = useCallback(() => {
     if (!isTracing) return;
 
@@ -187,30 +105,39 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
   // Get the current word being traced
   const currentWord = getWordFromPath(grid, currentPath);
 
-  // Calculate path lines for SVG overlay
-  const pathLines = useMemo(() => {
-    if (currentPath.length < 2) return [];
+  // Handle drag selection using browser hit testing
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isTracing || isDisabled) return;
 
-    const lines: Array<{ x1: number; y1: number; x2: number; y2: number; key: string }> = [];
-    for (let i = 0; i < currentPath.length - 1; i++) {
-      const from = getCellCenter(currentPath[i], cellSize, gridSize);
-      const to = getCellCenter(currentPath[i + 1], cellSize, gridSize);
-      lines.push({
-        x1: from.x,
-        y1: from.y,
-        x2: to.x,
-        y2: to.y,
-        key: `${currentPath[i]}-${currentPath[i + 1]}`,
-      });
-    }
-    return lines;
-  }, [currentPath, cellSize, gridSize]);
+      const hoveredIndex = getCellIndexAtPoint(e.clientX, e.clientY);
+      if (hoveredIndex === null) return;
 
-  // Calculate SVG dimensions
-  const svgSize = useMemo(() => {
-    const totalSize = gridSize * cellSize + (gridSize - 1) * CELL_GAP;
-    return totalSize;
-  }, [gridSize, cellSize]);
+      // Skip if same as last processed
+      if (hoveredIndex === lastSelectedRef.current) return;
+
+      const lastIndex = currentPath[currentPath.length - 1];
+
+      // Backtracking: if hovering second-to-last cell, remove last
+      if (currentPath.length >= 2 && hoveredIndex === currentPath[currentPath.length - 2]) {
+        removeLastFromPath();
+        lastSelectedRef.current = hoveredIndex;
+        return;
+      }
+
+      // Skip if already in path
+      if (currentPath.includes(hoveredIndex)) return;
+
+      // Only add if adjacent to last cell
+      if (isAdjacent(lastIndex, hoveredIndex, gridSize)) {
+        play('tileSelect');
+        vibrate('tileSelect');
+        addToPath(hoveredIndex);
+        lastSelectedRef.current = hoveredIndex;
+      }
+    },
+    [isTracing, isDisabled, currentPath, gridSize, addToPath, removeLastFromPath, play, vibrate]
+  );
 
   return (
     <div className="relative">
@@ -223,31 +150,6 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
 
       {/* Grid container */}
       <div className={`relative ${isSpectator ? 'opacity-75' : ''}`}>
-        {/* SVG overlay for path lines */}
-        {pathLines.length > 0 && (
-          <svg
-            className="absolute inset-0 pointer-events-none z-0"
-            width="100%"
-            height="100%"
-            viewBox={`0 0 ${svgSize} ${svgSize}`}
-            preserveAspectRatio="xMidYMid meet"
-          >
-            {pathLines.map((line) => (
-              <line
-                key={line.key}
-                x1={line.x1}
-                y1={line.y1}
-                x2={line.x2}
-                y2={line.y2}
-                stroke="rgba(244, 185, 66, 0.8)"
-                strokeWidth="4"
-                strokeLinecap="round"
-                className="path-line"
-              />
-            ))}
-          </svg>
-        )}
-
         {/* Grid */}
         <div
           ref={gridRef}
