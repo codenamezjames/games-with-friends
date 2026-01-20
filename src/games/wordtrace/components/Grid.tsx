@@ -1,10 +1,18 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 import { Cell } from './Cell';
 import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useGameStore } from '@/stores/useGameStore';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useHaptics } from '@/hooks/useHaptics';
 import { getWordFromPath } from '@/games/wordtrace/utils';
+
+interface PathLine {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  key: string;
+}
 
 // Selection tuning constants
 const INNER_HITBOX_RATIO = 0.75; // Only select when pointer is within inner 75% of cell
@@ -74,12 +82,8 @@ interface GridProps {
 }
 
 export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: GridProps) {
-  const gridRef = useCallback((node: HTMLDivElement | null) => {
-    // Store ref for future use
-    if (node) {
-      // Could measure actual cell sizes here if needed
-    }
-  }, []);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [pathLines, setPathLines] = useState<PathLine[]>([]);
 
   const { grid, gridSize, phase } = useGameStore();
   const {
@@ -116,6 +120,38 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
       clearPendingSelection();
     }
   }, [isTracing, clearPendingSelection]);
+
+  // Calculate path lines for SVG overlay
+  useEffect(() => {
+    if (currentPath.length < 2 || !gridRef.current) {
+      setPathLines([]);
+      return;
+    }
+
+    const gridRect = gridRef.current.getBoundingClientRect();
+    const lines: PathLine[] = [];
+
+    for (let i = 0; i < currentPath.length - 1; i++) {
+      const fromCell = gridRef.current.querySelector(`[data-index="${currentPath[i]}"]`);
+      const toCell = gridRef.current.querySelector(`[data-index="${currentPath[i + 1]}"]`);
+
+      if (fromCell && toCell) {
+        const fromRect = fromCell.getBoundingClientRect();
+        const toRect = toCell.getBoundingClientRect();
+
+        // Calculate centers relative to grid
+        const x1 = fromRect.left + fromRect.width / 2 - gridRect.left;
+        const y1 = fromRect.top + fromRect.height / 2 - gridRect.top;
+        const x2 = toRect.left + toRect.width / 2 - gridRect.left;
+        const y2 = toRect.top + toRect.height / 2 - gridRect.top;
+
+        lines.push({ x1, y1, x2, y2, key: `${currentPath[i]}-${currentPath[i + 1]}` });
+      }
+    }
+
+    setPathLines(lines);
+  }, [currentPath]);
+
   const { play } = useSoundEffects();
   const { vibrate } = useHaptics();
 
@@ -225,6 +261,27 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
 
       {/* Grid container */}
       <div className={`relative ${isSpectator ? 'opacity-75' : ''}`}>
+        {/* SVG overlay for path lines */}
+        {pathLines.length > 0 && (
+          <svg
+            className="absolute inset-0 pointer-events-none z-0"
+            style={{ width: '100%', height: '100%' }}
+          >
+            {pathLines.map((line) => (
+              <line
+                key={line.key}
+                x1={line.x1}
+                y1={line.y1}
+                x2={line.x2}
+                y2={line.y2}
+                stroke="rgba(244, 185, 66, 0.8)"
+                strokeWidth="4"
+                strokeLinecap="round"
+              />
+            ))}
+          </svg>
+        )}
+
         {/* Grid */}
         <div
           ref={gridRef}
