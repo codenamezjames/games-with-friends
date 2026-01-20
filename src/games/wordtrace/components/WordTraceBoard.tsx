@@ -8,6 +8,7 @@ import { SpectatorWordList } from './SpectatorWordList';
 import { LiveWordFeed } from './LiveWordFeed';
 import { Feedback } from './Feedback';
 import { Countdown } from '@/components/common/Countdown';
+import { Button } from '@/components/common/Button';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
 import { useLocalGameStore } from '@/stores/useLocalGameStore';
@@ -45,12 +46,13 @@ export function WordTraceBoard() {
     addFoundWord,
   } = useGameStore();
   const { setFeedback } = useLocalGameStore();
-  const { updateGameState, updateGameStateFields, submitWord, deleteSubmission } =
+  const { updateGameState, updateGameStateFields, submitWord, deleteSubmission, leaveRoom } =
     useRoom();
   const { play: playSound } = useSoundEffects();
   const { vibrate } = useHaptics();
 
   const [showCountdown, setShowCountdown] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // Initialize game instance for host
   useEffect(() => {
@@ -379,6 +381,23 @@ export function WordTraceBoard() {
 
   useHostSubmissionListener(handleSubmissionReceived);
 
+  // Handle leaving game
+  const handleLeaveGame = useCallback(async () => {
+    // Clear timer if running
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // Reset game state
+    const { resetGame } = useGameStore.getState();
+    resetGame();
+
+    // Leave room and navigate home
+    await leaveRoom();
+    navigate('/');
+  }, [leaveRoom, navigate]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -407,7 +426,17 @@ export function WordTraceBoard() {
   return (
     <div className="min-h-screen p-4 flex flex-col">
       {/* Header */}
-      <header className="text-center mb-4">
+      <header className="text-center mb-4 relative">
+        {/* Leave button */}
+        <button
+          onClick={() => setShowLeaveConfirm(true)}
+          className="absolute left-0 top-1 text-text-muted hover:text-text-primary transition-colors"
+          title="Leave game"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
         <h1 className="text-2xl font-bold text-primary mb-1">Word Trace</h1>
         <div
           className={`text-4xl font-mono font-bold ${
@@ -417,6 +446,33 @@ export function WordTraceBoard() {
           {timerDisplay}
         </div>
       </header>
+
+      {/* Leave Confirmation Modal */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-bg-card rounded-[var(--radius-lg)] p-6 max-w-sm w-full shadow-2xl">
+            <h2 className="text-xl font-bold text-text-primary mb-2">Leave Game?</h2>
+            <p className="text-text-muted mb-6">
+              Are you sure you want to leave? You'll lose your progress in this game.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleLeaveGame}
+                className="flex-1 bg-error hover:bg-error/90"
+              >
+                Leave
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main game area */}
       <main className="flex-1 flex flex-col gap-4 max-w-md mx-auto w-full">
