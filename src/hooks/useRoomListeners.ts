@@ -7,13 +7,14 @@ import { useGameStore } from '@/stores/useGameStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { useRoom } from '@/hooks/useRoom';
 import { getGamePaths } from '@/games/registry';
-import type { Player, RoomStatus } from '@/types';
+import type { Player, RoomStatus, GameSettings } from '@/types';
+import { DEFAULT_GAME_SETTINGS } from '@/types';
 
 const HOST_TRANSFER_DELAY_MS = 5000; // 5 seconds grace period
 
 export function useRoomListeners() {
   const navigate = useNavigate();
-  const { roomCode, playerId, setPlayers, setRoomStatus, resetRoom, setIsHost, setIsSpectator } = useRoomStore();
+  const { roomCode, playerId, setPlayers, setRoomStatus, resetRoom, setIsHost, setIsSpectator, setGameSettings } = useRoomStore();
   const { resetGame, gameType } = useGameStore();
   const { claimHost } = useRoom();
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -249,17 +250,37 @@ export function useRoomListeners() {
       }
     );
 
+    // Listen to game settings changes (for rematch settings sync)
+    const gameSettingsRef = ref(db, `rooms/${roomCode}/metadata/gameSettings`);
+    const unsubGameSettings = onValue(
+      gameSettingsRef,
+      (snapshot) => {
+        const settings = snapshot.val() as GameSettings | null;
+        if (settings) {
+          // Merge with defaults in case some fields are missing
+          setGameSettings({
+            ...DEFAULT_GAME_SETTINGS,
+            ...settings,
+          });
+        }
+      },
+      (error) => {
+        console.error('[useRoomListeners] Game settings listener error:', error);
+      }
+    );
+
     return () => {
       unsubPlayers();
       unsubPlayerRemoved();
       unsubStatus();
+      unsubGameSettings();
       // Clear host transfer timer on cleanup
       if (hostTransferTimerRef.current) {
         clearTimeout(hostTransferTimerRef.current);
         hostTransferTimerRef.current = null;
       }
     };
-  }, [roomCode, playerId, setPlayers, setRoomStatus, resetRoom, resetGame, navigate, shouldBecomeHost, claimHost, setIsHost, setIsSpectator, gameType]);
+  }, [roomCode, playerId, setPlayers, setRoomStatus, resetRoom, resetGame, navigate, shouldBecomeHost, claimHost, setIsHost, setIsSpectator, setGameSettings, gameType]);
 
   return { connectionError };
 }

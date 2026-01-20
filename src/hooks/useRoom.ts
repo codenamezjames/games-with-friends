@@ -76,6 +76,9 @@ export function useRoom() {
         throw new Error('Failed to generate unique room code');
       }
 
+      // Get current game settings to initialize the room with
+      const { gameSettings } = useRoomStore.getState();
+
       // Create room
       await set(roomRef, {
         metadata: {
@@ -83,6 +86,7 @@ export function useRoom() {
           hostId: currentPlayerId,
           status: 'waiting',
           createdAt: serverTimestamp(),
+          gameSettings: gameSettings,
         },
         players: {
           [currentPlayerId]: {
@@ -447,6 +451,17 @@ export function useRoom() {
     []
   );
 
+  const updateGameSettings = useCallback(
+    async (settings: { duration?: number; gridSize?: number }): Promise<void> => {
+      const { roomCode, isHost } = useRoomStore.getState();
+      if (!roomCode || !isHost) return;
+
+      const settingsRef = ref(db, `rooms/${roomCode}/metadata/gameSettings`);
+      await update(settingsRef, settings);
+    },
+    []
+  );
+
   // Transfer host to another player
   const transferHost = useCallback(
     async (newHostId: string): Promise<void> => {
@@ -514,6 +529,7 @@ export function useRoom() {
     submitWord, // @deprecated - use submitAction instead
     deleteSubmission,
     setRoomStatus,
+    updateGameSettings,
     transferHost,
     claimHost,
   };

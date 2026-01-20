@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { Button } from './Button';
 import { useRoomStore } from '@/stores/useRoomStore';
+import { useRoom } from '@/hooks/useRoom';
 import { DURATION_OPTIONS, GRID_SIZE_OPTIONS, TEST_DURATION_OPTION } from '@/types';
 import type { Player } from '@/types';
 
@@ -28,7 +29,8 @@ export function ReadyCheckPanel({
   const [autoStartCountdown, setAutoStartCountdown] = useState<number | null>(null);
   const hasStartedRef = useRef(false);
 
-  const { gameSettings, setGameSettings, players: storePlayers, playerId } = useRoomStore();
+  const { gameSettings, players: storePlayers, playerId } = useRoomStore();
+  const { updateGameSettings } = useRoom();
 
   // Get local player's name for test duration option
   const localPlayerName = playerId ? storePlayers[playerId]?.name : null;
@@ -185,7 +187,7 @@ export function ReadyCheckPanel({
               <button
                 key={option.value}
                 disabled={!isHost}
-                onClick={() => isHost && setGameSettings({ duration: option.value })}
+                onClick={() => isHost && updateGameSettings({ duration: option.value })}
                 className={`
                   flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors
                   ${
@@ -210,7 +212,7 @@ export function ReadyCheckPanel({
               <button
                 key={option.value}
                 disabled={!isHost}
-                onClick={() => isHost && setGameSettings({ gridSize: option.value })}
+                onClick={() => isHost && updateGameSettings({ gridSize: option.value })}
                 className={`
                   flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors
                   ${

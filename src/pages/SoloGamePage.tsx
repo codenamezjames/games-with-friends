@@ -110,16 +110,19 @@ export function SoloGamePage() {
 
   // Handle countdown complete
   const handleCountdownComplete = useCallback(() => {
+    // Read actions from store inside callback to avoid stale closures
+    const { setPhase } = useGameStore.getState();
     setPhase('playing');
     playSound('gameStart');
     vibrate('gameStart');
 
     // Start timer
     timerRef.current = window.setInterval(() => {
-      const currentTime = useGameStore.getState().timeRemaining;
+      // Read from store inside interval to avoid stale closures
+      const { timeRemaining, setTimeRemaining, setPhase } = useGameStore.getState();
 
       // Guard: don't decrement if already at or below 0
-      if (currentTime <= 0) {
+      if (timeRemaining <= 0) {
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
@@ -127,7 +130,7 @@ export function SoloGamePage() {
         return;
       }
 
-      const newTime = currentTime - 1;
+      const newTime = timeRemaining - 1;
       setTimeRemaining(newTime);
 
       if (newTime <= 0) {
@@ -140,7 +143,7 @@ export function SoloGamePage() {
         setPhase('finished');
       }
     }, 1000);
-  }, [setPhase, setTimeRemaining, playSound, vibrate]);
+  }, [playSound, vibrate]);
 
   // Handle word submission
   const handleWordSubmit = useCallback(
