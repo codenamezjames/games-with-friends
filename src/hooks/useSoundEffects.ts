@@ -1,4 +1,5 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 
 type SoundType = 'tileSelect' | 'wordValid' | 'wordInvalid' | 'countdown' | 'gameStart' | 'gameEnd';
 
@@ -133,10 +134,10 @@ function playGameEnd(ctx: AudioContext) {
 }
 
 export function useSoundEffects() {
-  const enabledRef = useRef(true);
+  const soundEnabled = useSettingsStore((state) => state.soundEnabled);
 
   const play = useCallback((sound: SoundType) => {
-    if (!enabledRef.current) return;
+    if (!soundEnabled) return;
 
     try {
       const ctx = getAudioContext();
@@ -170,11 +171,7 @@ export function useSoundEffects() {
       // Silently fail if audio not supported
       console.warn('Audio playback failed:', e);
     }
-  }, []);
+  }, [soundEnabled]);
 
-  const setEnabled = useCallback((enabled: boolean) => {
-    enabledRef.current = enabled;
-  }, []);
-
-  return { play, setEnabled };
+  return { play };
 }

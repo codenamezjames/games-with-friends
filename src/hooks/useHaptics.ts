@@ -1,4 +1,5 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 
 type HapticType = 'tileSelect' | 'wordValid' | 'wordInvalid' | 'gameStart' | 'gameEnd';
 
@@ -18,10 +19,10 @@ const HAPTIC_PATTERNS: Record<HapticType, number | number[]> = {
 };
 
 export function useHaptics() {
-  const enabledRef = useRef(true);
+  const hapticsEnabled = useSettingsStore((state) => state.hapticsEnabled);
 
   const vibrate = useCallback((type: HapticType) => {
-    if (!enabledRef.current || !canVibrate()) return;
+    if (!hapticsEnabled || !canVibrate()) return;
 
     try {
       const pattern = HAPTIC_PATTERNS[type];
@@ -30,11 +31,7 @@ export function useHaptics() {
       // Silently fail if vibration not supported
       console.warn('Vibration failed:', e);
     }
-  }, []);
-
-  const setEnabled = useCallback((enabled: boolean) => {
-    enabledRef.current = enabled;
-  }, []);
+  }, [hapticsEnabled]);
 
   // Cancel any ongoing vibration
   const cancel = useCallback(() => {
@@ -43,5 +40,5 @@ export function useHaptics() {
     }
   }, []);
 
-  return { vibrate, setEnabled, cancel, isSupported: canVibrate() };
+  return { vibrate, cancel, isSupported: canVibrate() };
 }
