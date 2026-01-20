@@ -134,9 +134,9 @@ function playGameEnd(ctx: AudioContext) {
 }
 
 export function useSoundEffects() {
-  const soundEnabled = useSettingsStore((state) => state.soundEnabled);
-
   const play = useCallback((sound: SoundType) => {
+    // Read from store inside callback to avoid dependency issues
+    const soundEnabled = useSettingsStore.getState().soundEnabled;
     if (!soundEnabled) return;
 
     try {
@@ -171,7 +171,7 @@ export function useSoundEffects() {
       // Silently fail if audio not supported
       console.warn('Audio playback failed:', e);
     }
-  }, [soundEnabled]);
+  }, []);
 
   return { play };
 }

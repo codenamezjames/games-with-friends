@@ -19,9 +19,9 @@ const HAPTIC_PATTERNS: Record<HapticType, number | number[]> = {
 };
 
 export function useHaptics() {
-  const hapticsEnabled = useSettingsStore((state) => state.hapticsEnabled);
-
   const vibrate = useCallback((type: HapticType) => {
+    // Read from store inside callback to avoid dependency issues
+    const hapticsEnabled = useSettingsStore.getState().hapticsEnabled;
     if (!hapticsEnabled || !canVibrate()) return;
 
     try {
@@ -31,7 +31,7 @@ export function useHaptics() {
       // Silently fail if vibration not supported
       console.warn('Vibration failed:', e);
     }
-  }, [hapticsEnabled]);
+  }, []);
 
   // Cancel any ongoing vibration
   const cancel = useCallback(() => {
