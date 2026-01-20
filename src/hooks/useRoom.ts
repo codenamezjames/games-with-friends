@@ -453,11 +453,13 @@ export function useRoom() {
 
   const updateGameSettings = useCallback(
     async (settings: { duration?: number; gridSize?: number }): Promise<void> => {
-      const { roomCode, isHost } = useRoomStore.getState();
+      const { roomCode, isHost, gameSettings } = useRoomStore.getState();
       if (!roomCode || !isHost) return;
 
+      // Merge with current settings and write the full object
+      const newSettings = { ...gameSettings, ...settings };
       const settingsRef = ref(db, `rooms/${roomCode}/metadata/gameSettings`);
-      await update(settingsRef, settings);
+      await set(settingsRef, newSettings);
     },
     []
   );
