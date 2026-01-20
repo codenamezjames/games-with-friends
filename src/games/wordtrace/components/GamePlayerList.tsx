@@ -14,25 +14,15 @@ interface GamePlayerListProps {
   players: Player[];
 }
 
-interface FloatingPoint {
-  id: number;
-  playerId: string;
-  points: number;
-}
-
 export function GamePlayerList({ players }: GamePlayerListProps) {
-  const prevScoresRef = useRef<Record<string, number>>({});
+  const prevWordCountsRef = useRef<Record<string, number>>({});
   const [pulsingPlayers, setPulsingPlayers] = useState<Set<string>>(new Set());
-  const [floatingPoints, setFloatingPoints] = useState<FloatingPoint[]>([]);
-  const idCounterRef = useRef(0);
 
-  // Detect score changes and trigger animations
+  // Detect word count changes and trigger pulse animations
   useEffect(() => {
     players.forEach((player) => {
-      const prevScore = prevScoresRef.current[player.id] || 0;
-      if (player.score > prevScore) {
-        const pointsGained = player.score - prevScore;
-
+      const prevWordCount = prevWordCountsRef.current[player.id] || 0;
+      if (player.wordCount > prevWordCount) {
         // Trigger pulse animation
         setPulsingPlayers((prev) => new Set(prev).add(player.id));
         setTimeout(() => {
@@ -42,25 +32,13 @@ export function GamePlayerList({ players }: GamePlayerListProps) {
             return next;
           });
         }, 400);
-
-        // Add floating points
-        const newId = idCounterRef.current++;
-        setFloatingPoints((prev) => [
-          ...prev,
-          { id: newId, playerId: player.id, points: pointsGained },
-        ]);
-
-        // Remove floating point after animation
-        setTimeout(() => {
-          setFloatingPoints((prev) => prev.filter((fp) => fp.id !== newId));
-        }, 800);
       }
-      prevScoresRef.current[player.id] = player.score;
+      prevWordCountsRef.current[player.id] = player.wordCount;
     });
   }, [players]);
 
-  // Sort players by score descending
-  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+  // Sort players by word count descending
+  const sortedPlayers = [...players].sort((a, b) => b.wordCount - a.wordCount);
 
   return (
     <div className="bg-bg-card rounded-[var(--radius-default)] p-3">
@@ -69,11 +47,7 @@ export function GamePlayerList({ players }: GamePlayerListProps) {
       </h3>
       <ul className="space-y-2">
         {sortedPlayers.map((player, index) => {
-          const playerFloatingPoints = floatingPoints.filter(
-            (fp) => fp.playerId === player.id
-          );
           const isPulsing = pulsingPlayers.has(player.id);
-
           const isDisconnected = player.isConnected === false;
 
           return (
@@ -109,28 +83,13 @@ export function GamePlayerList({ players }: GamePlayerListProps) {
                   )}
                 </span>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-text-muted">
-                  {player.wordCount} {player.wordCount === 1 ? 'word' : 'words'}
-                </span>
-                <div className="relative">
-                  <span
-                    className={`text-lg font-bold text-primary min-w-[2rem] text-right inline-block ${
-                      isPulsing ? 'score-pulse' : ''
-                    }`}
-                  >
-                    {player.score}
-                  </span>
-                  {playerFloatingPoints.map((fp) => (
-                    <span
-                      key={fp.id}
-                      className="absolute -top-2 left-1/2 -translate-x-1/2 text-success text-sm font-bold float-points"
-                    >
-                      +{fp.points}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              <span
+                className={`text-lg font-bold text-primary min-w-[2rem] text-right inline-block ${
+                  isPulsing ? 'score-pulse' : ''
+                }`}
+              >
+                {player.wordCount}
+              </span>
             </li>
           );
         })}

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { getWordPoints } from '@/games/wordtrace/utils';
 
 interface WordListProps {
   words: string[];
@@ -12,10 +11,10 @@ export function WordList({ words }: WordListProps) {
     return null;
   }
 
-  // Sort words by points (highest first), then alphabetically
+  // Sort words by length (longest first), then alphabetically
   const sortedWords = [...words].sort((a, b) => {
-    const pointsDiff = getWordPoints(b) - getWordPoints(a);
-    if (pointsDiff !== 0) return pointsDiff;
+    const lenDiff = b.length - a.length;
+    if (lenDiff !== 0) return lenDiff;
     return a.localeCompare(b);
   });
 
@@ -44,10 +43,9 @@ export function WordList({ words }: WordListProps) {
         {displayWords.map((word) => (
           <span
             key={word}
-            className="inline-flex items-center gap-1 px-2 py-0.5 bg-bg-main rounded text-sm"
+            className="px-2 py-0.5 bg-bg-main rounded text-sm text-text-primary"
           >
-            <span className="text-text-primary">{word}</span>
-            <span className="text-accent text-xs">+{getWordPoints(word)}</span>
+            {word}
           </span>
         ))}
       </div>

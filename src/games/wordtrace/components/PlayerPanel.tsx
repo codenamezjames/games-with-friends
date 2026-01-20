@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { getWordPoints } from '@/games/wordtrace/utils';
 
 interface PlayerPanelProps {
   name: string;
@@ -9,44 +8,25 @@ interface PlayerPanelProps {
   isLocal: boolean;
 }
 
-interface FloatingPoint {
-  id: number;
-  points: number;
-}
-
 export function PlayerPanel({
   name,
-  score,
   wordCount,
   words,
   isLocal,
 }: PlayerPanelProps) {
-  const prevScoreRef = useRef(score);
+  const prevWordCountRef = useRef(wordCount);
   const prevWordsLengthRef = useRef(words.length);
   const [isPulsing, setIsPulsing] = useState(false);
-  const [floatingPoints, setFloatingPoints] = useState<FloatingPoint[]>([]);
-  const idCounterRef = useRef(0);
 
-  // Detect score changes and trigger animations
+  // Detect word count changes and trigger pulse animation
   useEffect(() => {
-    if (score > prevScoreRef.current) {
-      const pointsGained = score - prevScoreRef.current;
-
+    if (wordCount > prevWordCountRef.current) {
       // Trigger pulse animation
       setIsPulsing(true);
       setTimeout(() => setIsPulsing(false), 400);
-
-      // Add floating points
-      const newId = idCounterRef.current++;
-      setFloatingPoints((prev) => [...prev, { id: newId, points: pointsGained }]);
-
-      // Remove floating point after animation
-      setTimeout(() => {
-        setFloatingPoints((prev) => prev.filter((fp) => fp.id !== newId));
-      }, 800);
     }
-    prevScoreRef.current = score;
-  }, [score]);
+    prevWordCountRef.current = wordCount;
+  }, [wordCount]);
 
   // Track new words for slide-in animation
   useEffect(() => {
@@ -68,22 +48,11 @@ export function PlayerPanel({
             <span className="text-xs text-text-muted ml-2">(You)</span>
           )}
         </span>
-        <div className="relative">
-          <span
-            className={`text-2xl font-bold text-primary inline-block ${isPulsing ? 'score-pulse' : ''}`}
-          >
-            {score}
-          </span>
-          {/* Floating points */}
-          {floatingPoints.map((fp) => (
-            <span
-              key={fp.id}
-              className="absolute -top-2 left-1/2 -translate-x-1/2 text-success font-bold float-points"
-            >
-              +{fp.points}
-            </span>
-          ))}
-        </div>
+        <span
+          className={`text-2xl font-bold text-primary inline-block ${isPulsing ? 'score-pulse' : ''}`}
+        >
+          {wordCount}
+        </span>
       </div>
 
       {/* Word list or word count */}
@@ -98,14 +67,13 @@ export function PlayerPanel({
               {words.map((word, index) => (
                 <li
                   key={index}
-                  className={`text-sm text-text-secondary flex justify-between ${
+                  className={`text-sm text-text-secondary ${
                     index >= prevWordsLengthRef.current - 1 && index === words.length - 1
                       ? 'word-item-new'
                       : ''
                   }`}
                 >
-                  <span>{word}</span>
-                  <span className="text-success">+{getWordPoints(word)}</span>
+                  {word}
                 </li>
               ))}
             </ul>

@@ -28,15 +28,11 @@ export function isAdjacent(index1: number, index2: number, gridSize: number = 5)
 }
 
 /**
- * Get points for a word (official Boggle scoring)
+ * Get points for a word (length - 2, minimum 1)
+ * 3 letters = 1pt, 4 letters = 2pt, 5 letters = 3pt, etc.
  */
 export function getWordPoints(word: string): number {
-  const len = word.length;
-  if (len <= 4) return 1;
-  if (len === 5) return 2;
-  if (len === 6) return 3;
-  if (len === 7) return 5;
-  return 11; // 8+ letters
+  return Math.max(1, word.length - 2);
 }
 
 /**
@@ -289,11 +285,15 @@ export function prepareWordRevealSequence(
   const allWords: { word: string; points: number; foundByPlayerIds: string[]; isShared: boolean }[] = [];
 
   wordToPlayers.forEach((playerIds, word) => {
+    const basePoints = getWordPoints(word);
+    const isShared = playerIds.length >= 2;
+    // Unique words (found by only one player) get 2x points
+    const points = isShared ? basePoints : basePoints * 2;
     allWords.push({
       word,
-      points: getWordPoints(word),
+      points,
       foundByPlayerIds: playerIds,
-      isShared: playerIds.length >= 2,
+      isShared,
     });
   });
 

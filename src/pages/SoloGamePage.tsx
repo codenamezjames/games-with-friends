@@ -177,15 +177,14 @@ export function SoloGamePage() {
       // Valid word!
       playSound('wordValid');
       vibrate('wordValid');
-      const points = getWordPoints(word);
       addFoundWord(playerId, word);
       updatePlayerScore(
         playerId,
-        (scores[playerId] || 0) + points,
+        scores[playerId] || 0,
         (wordCounts[playerId] || 0) + 1
       );
       setFeedback({
-        message: `+${points} point${points > 1 ? 's' : ''}!`,
+        message: 'Nice!',
         type: 'success',
       });
     },
@@ -242,6 +241,11 @@ export function SoloGamePage() {
     };
   }, []);
 
+  // Calculate score from words
+  const calculateScore = (words: string[]) => {
+    return words.reduce((total, word) => total + getWordPoints(word), 0);
+  };
+
   // Record stats when game finishes
   useEffect(() => {
     if (phase === 'finished' && !statsRecordedRef.current) {
@@ -252,7 +256,7 @@ export function SoloGamePage() {
         ''
       );
       recordGame({
-        score: scores[playerId] || 0,
+        score: calculateScore(words),
         wordCount: wordCounts[playerId] || 0,
         longestWord,
         gridSize: selectedGridSize,
@@ -261,7 +265,7 @@ export function SoloGamePage() {
         won: null,
       });
     }
-  }, [phase, foundWords, scores, wordCounts, selectedGridSize, selectedDuration, recordGame]);
+  }, [phase, foundWords, wordCounts, selectedGridSize, selectedDuration, recordGame]);
 
   // Format timer (clamp to 0 to prevent negative display)
   const displayTime = Math.max(0, timeRemaining);
@@ -270,8 +274,8 @@ export function SoloGamePage() {
   const timerDisplay = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
   const myWords = foundWords[playerId] || [];
-  const myScore = scores[playerId] || 0;
   const myWordCount = wordCounts[playerId] || 0;
+  const myFinalScore = calculateScore(myWords);
 
   // Share functionality
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle');
@@ -281,7 +285,7 @@ export function SoloGamePage() {
     const shareText = [
       '🎯 Word Trace Solo Practice 🎯',
       '',
-      `Score: ${myScore} pts (${myWordCount} words)`,
+      `Score: ${myFinalScore} pts (${myWordCount} words)`,
       '',
       myWords.length > 0 ? `Best words: ${myWords.slice(0, 5).join(', ')}` : '',
       '',
@@ -306,7 +310,7 @@ export function SoloGamePage() {
     } catch {
       // Clipboard failed
     }
-  }, [myScore, myWordCount, myWords]);
+  }, [myFinalScore, myWordCount, myWords]);
 
   // Setup screen
   if (isSetup) {
@@ -402,18 +406,15 @@ export function SoloGamePage() {
         </div>
       </header>
 
-      {/* Score display */}
+      {/* Word count display */}
       <div className="max-w-md mx-auto w-full mb-4">
         <div className="bg-bg-card rounded-[var(--radius-default)] p-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-text-primary">
-              {playerName || 'Player'}
-            </span>
-            <span className="text-xs text-text-muted">
-              {myWordCount} {myWordCount === 1 ? 'word' : 'words'}
-            </span>
-          </div>
-          <span className="text-2xl font-bold text-primary">{myScore}</span>
+          <span className="font-medium text-text-primary">
+            {playerName || 'Player'}
+          </span>
+          <span className="text-lg font-bold text-primary">
+            {myWordCount} {myWordCount === 1 ? 'word' : 'words'}
+          </span>
         </div>
       </div>
 
@@ -450,7 +451,7 @@ export function SoloGamePage() {
 
             {/* Final Score */}
             <div className="text-center mb-6">
-              <div className="text-6xl font-bold text-accent mb-2">{myScore}</div>
+              <div className="text-6xl font-bold text-accent mb-2">{myFinalScore}</div>
               <div className="text-text-secondary">
                 {myWordCount} {myWordCount === 1 ? 'word' : 'words'} found
               </div>
@@ -468,7 +469,7 @@ export function SoloGamePage() {
                       key={index}
                       className="bg-bg-cell px-3 py-1 rounded-full text-sm text-text-secondary"
                     >
-                      {word} (+{getWordPoints(word)})
+                      {word}
                     </span>
                   ))
                 ) : (

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { getWordPoints } from '@/games/wordtrace/utils';
 import type { Player } from '@/types';
 
 interface WordEntry {
@@ -7,7 +6,6 @@ interface WordEntry {
   word: string;
   playerId: string;
   playerName: string;
-  points: number;
   timestamp: number;
 }
 
@@ -43,7 +41,6 @@ export function LiveWordFeed({ foundWords, players }: LiveWordFeedProps) {
             word,
             playerId,
             playerName,
-            points: getWordPoints(word),
             timestamp: Date.now(),
           });
         }
@@ -99,9 +96,6 @@ export function LiveWordFeed({ foundWords, players }: LiveWordFeedProps) {
               <span className="text-text-muted text-sm">{entry.playerName}</span>
               <span className="text-text-muted">found</span>
               <span className="font-bold text-lg text-accent">{entry.word}</span>
-              <span className="text-success text-sm font-medium">
-                +{entry.points}
-              </span>
             </div>
           </div>
         );

@@ -18,7 +18,6 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useHaptics } from '@/hooks/useHaptics';
 import { getGamePaths } from '@/games/registry';
 import { WordTraceGame } from '@/games/wordtrace/WordTraceGame';
-import { getWordPoints } from '@/games/wordtrace/utils';
 import { DICTIONARY } from '@/lib/dictionary';
 
 export function WordTraceBoard() {
@@ -279,7 +278,7 @@ export function WordTraceBoard() {
           addFoundWord(playerId, word);
           updatePlayerScore(playerId, result.newScore!, result.wordCount!);
           setFeedback({
-            message: `+${result.points} point${result.points! > 1 ? 's' : ''}!`,
+            message: 'Nice!',
             type: 'success',
           });
 
@@ -323,15 +322,14 @@ export function WordTraceBoard() {
         // Optimistic UI update
         playSound('wordValid');
         vibrate('wordValid');
-        const points = getWordPoints(word);
         addFoundWord(playerId, word);
         updatePlayerScore(
           playerId,
-          (scores[playerId] || 0) + points,
+          scores[playerId] || 0,
           (wordCounts[playerId] || 0) + 1
         );
         setFeedback({
-          message: `+${points} point${points > 1 ? 's' : ''}!`,
+          message: 'Nice!',
           type: 'success',
         });
 
