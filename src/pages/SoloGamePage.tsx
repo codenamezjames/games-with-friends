@@ -275,6 +275,7 @@ export function SoloGamePage() {
 
   // Share functionality
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle');
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   const handleShare = useCallback(async () => {
     const shareText = [
@@ -380,7 +381,17 @@ export function SoloGamePage() {
   return (
     <div className="min-h-screen p-4 flex flex-col">
       {/* Header */}
-      <header className="text-center mb-4">
+      <header className="relative text-center mb-4">
+        {/* Leave Button */}
+        <button
+          onClick={() => setShowLeaveConfirm(true)}
+          className="absolute left-0 top-0 p-2 text-text-muted hover:text-text-primary transition-colors"
+          aria-label="Leave game"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
         <h1 className="text-2xl font-bold text-primary mb-1">Solo Practice</h1>
         <div
           className={`text-4xl font-mono font-bold ${
@@ -484,6 +495,34 @@ export function SoloGamePage() {
                   Exit
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Confirmation Dialog */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-bg-card rounded-[var(--radius-default)] p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-xl font-bold text-text-primary mb-2">Leave Game?</h3>
+            <p className="text-text-muted mb-6">
+              Your progress won't be saved and this game won't count towards your stats.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1"
+              >
+                Keep Playing
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleBackToMenu}
+                className="flex-1 !bg-error hover:!bg-error/90"
+              >
+                Leave
+              </Button>
             </div>
           </div>
         </div>
