@@ -6,11 +6,20 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useHaptics } from '@/hooks/useHaptics';
 import { getWordFromPath } from '@/games/wordtrace/utils';
 
+// Selection tuning constants
+const INNER_HITBOX_RATIO = 0.65; // Only select when pointer is within inner 65% of cell
+const DWELL_TIME_MS = 80; // Must hover for 80ms before selecting
+
+interface CellAtPoint {
+  index: number;
+  element: Element;
+}
+
 /**
- * Get the cell index at a given screen coordinate using browser hit testing.
+ * Get the cell index and element at a given screen coordinate using browser hit testing.
  * Returns null if no cell is found at the position.
  */
-function getCellIndexAtPoint(x: number, y: number): number | null {
+function getCellAtPoint(x: number, y: number): CellAtPoint | null {
   const element = document.elementFromPoint(x, y);
   if (!element) return null;
 
@@ -19,7 +28,27 @@ function getCellIndexAtPoint(x: number, y: number): number | null {
   if (!cell) return null;
 
   const index = cell.getAttribute('data-index');
-  return index !== null ? parseInt(index, 10) : null;
+  if (index === null) return null;
+
+  return { index: parseInt(index, 10), element: cell };
+}
+
+/**
+ * Check if a pointer position is within the inner region of a cell.
+ * Returns true if pointer is within the inner INNER_HITBOX_RATIO of the cell.
+ */
+function isPointerInInnerRegion(pointerX: number, pointerY: number, cellElement: Element): boolean {
+  const rect = cellElement.getBoundingClientRect();
+  const marginX = rect.width * (1 - INNER_HITBOX_RATIO) / 2;
+  const marginY = rect.height * (1 - INNER_HITBOX_RATIO) / 2;
+
+  const innerLeft = rect.left + marginX;
+  const innerRight = rect.right - marginX;
+  const innerTop = rect.top + marginY;
+  const innerBottom = rect.bottom - marginY;
+
+  return pointerX >= innerLeft && pointerX <= innerRight &&
+         pointerY >= innerTop && pointerY <= innerBottom;
 }
 
 /**
@@ -66,12 +95,27 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
   // Track last selected cell to avoid duplicate processing
   const lastSelectedRef = useRef<number | null>(null);
 
-  // Reset ref when trace ends
+  // Track pending selection with dwell time
+  const pendingSelectionRef = useRef<{
+    cellIndex: number;
+    timeoutId: ReturnType<typeof setTimeout>;
+  } | null>(null);
+
+  // Clear pending selection helper
+  const clearPendingSelection = useCallback(() => {
+    if (pendingSelectionRef.current) {
+      clearTimeout(pendingSelectionRef.current.timeoutId);
+      pendingSelectionRef.current = null;
+    }
+  }, []);
+
+  // Reset refs when trace ends
   useEffect(() => {
     if (!isTracing) {
       lastSelectedRef.current = null;
+      clearPendingSelection();
     }
-  }, [isTracing]);
+  }, [isTracing, clearPendingSelection]);
   const { play } = useSoundEffects();
   const { vibrate } = useHaptics();
 
@@ -105,21 +149,37 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
   // Get the current word being traced
   const currentWord = getWordFromPath(grid, currentPath);
 
-  // Handle drag selection using browser hit testing
+  // Handle drag selection using browser hit testing with inner hitbox and dwell time
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!isTracing || isDisabled) return;
 
-      const hoveredIndex = getCellIndexAtPoint(e.clientX, e.clientY);
-      if (hoveredIndex === null) return;
+      const cellAtPoint = getCellAtPoint(e.clientX, e.clientY);
+      if (!cellAtPoint) {
+        clearPendingSelection();
+        return;
+      }
 
-      // Skip if same as last processed
+      const { index: hoveredIndex, element: cellElement } = cellAtPoint;
+
+      // Check if pointer is within the inner region of the cell
+      const inInnerRegion = isPointerInInnerRegion(e.clientX, e.clientY, cellElement);
+      if (!inInnerRegion) {
+        // Left the inner region - clear any pending selection for this cell
+        if (pendingSelectionRef.current?.cellIndex === hoveredIndex) {
+          clearPendingSelection();
+        }
+        return;
+      }
+
+      // Skip if same as last selected
       if (hoveredIndex === lastSelectedRef.current) return;
 
       const lastIndex = currentPath[currentPath.length - 1];
 
-      // Backtracking: if hovering second-to-last cell, remove last
+      // Backtracking: if hovering second-to-last cell, remove last (immediate, no dwell)
       if (currentPath.length >= 2 && hoveredIndex === currentPath[currentPath.length - 2]) {
+        clearPendingSelection();
         removeLastFromPath();
         lastSelectedRef.current = hoveredIndex;
         return;
@@ -128,15 +188,30 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
       // Skip if already in path
       if (currentPath.includes(hoveredIndex)) return;
 
-      // Only add if adjacent to last cell
-      if (isAdjacent(lastIndex, hoveredIndex, gridSize)) {
-        play('tileSelect');
-        vibrate('tileSelect');
-        addToPath(hoveredIndex);
-        lastSelectedRef.current = hoveredIndex;
-      }
+      // Only consider if adjacent to last cell
+      if (!isAdjacent(lastIndex, hoveredIndex, gridSize)) return;
+
+      // If already pending for this cell, let the timeout handle it
+      if (pendingSelectionRef.current?.cellIndex === hoveredIndex) return;
+
+      // Clear any pending selection for a different cell
+      clearPendingSelection();
+
+      // Start dwell timer for this cell
+      const timeoutId = setTimeout(() => {
+        // Double-check conditions are still valid when timeout fires
+        if (lastSelectedRef.current !== hoveredIndex && !currentPath.includes(hoveredIndex)) {
+          play('tileSelect');
+          vibrate('tileSelect');
+          addToPath(hoveredIndex);
+          lastSelectedRef.current = hoveredIndex;
+        }
+        pendingSelectionRef.current = null;
+      }, DWELL_TIME_MS);
+
+      pendingSelectionRef.current = { cellIndex: hoveredIndex, timeoutId };
     },
-    [isTracing, isDisabled, currentPath, gridSize, addToPath, removeLastFromPath, play, vibrate]
+    [isTracing, isDisabled, currentPath, gridSize, addToPath, removeLastFromPath, play, vibrate, clearPendingSelection]
   );
 
   return (
