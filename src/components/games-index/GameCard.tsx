@@ -37,7 +37,7 @@ export function GameCard({
           {name}
           {!available && (
             <span className="text-[0.7rem] bg-text-muted text-bg-main px-2 py-0.5 rounded uppercase font-semibold tracking-wider">
-              Coming Soon
+              Coming Eventually
             </span>
           )}
         </h3>

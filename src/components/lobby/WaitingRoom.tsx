@@ -43,21 +43,15 @@ export function WaitingRoom() {
       const {
         roomCode: currentRoomCode,
         playerId: currentPlayerId,
-        playerName: currentPlayerName,
       } = useRoomStore.getState();
 
       const targetRoomCode = currentRoomCode || urlRoomCode;
 
-      console.log('[WaitingRoom] Attempting join/rejoin', {
-        currentRoomCode,
-        urlRoomCode,
-        currentPlayerId,
-        currentPlayerName,
-      });
+      // Attempting join/rejoin
 
       // No room code at all
       if (!targetRoomCode) {
-        console.log('[WaitingRoom] No room code');
+        // console.log('[WaitingRoom] No room code');
         if (!cancelled) {
           setError('No room code provided');
           setIsJoining(false);
@@ -67,7 +61,7 @@ export function WaitingRoom() {
 
       // No player ID (not authenticated)
       if (!currentPlayerId) {
-        console.log('[WaitingRoom] No player ID, waiting for auth...');
+        // console.log('[WaitingRoom] No player ID, waiting for auth...');
         // Wait a bit longer for auth
         await new Promise((resolve) => setTimeout(resolve, 500));
         const { playerId: retryPlayerId } = useRoomStore.getState();
@@ -94,7 +88,7 @@ export function WaitingRoom() {
         const roomSnapshot = await get(roomRef);
 
         if (!roomSnapshot.exists()) {
-          console.log('[WaitingRoom] Room does not exist');
+          // console.log('[WaitingRoom] Room does not exist');
           clearTimeout(joinTimeout);
           if (!cancelled) {
             setError('Room not found. It may have been closed.');
@@ -114,7 +108,7 @@ export function WaitingRoom() {
         // If we're already in the room (just joined via MainMenu, refreshing, or rematch), we're good
         // This handles the rematch flow where status might still be 'finished' briefly
         if (currentRoomCode === targetRoomCode && isInRoom) {
-          console.log('[WaitingRoom] Already in room, showing waiting room', { status });
+          // console.log('[WaitingRoom] Already in room, showing waiting room', { status });
           clearTimeout(joinTimeout);
           if (!cancelled) {
             setIsJoining(false);
@@ -124,7 +118,7 @@ export function WaitingRoom() {
 
         // If game is in progress, redirect to game page
         if (status === 'countdown' || status === 'playing') {
-          console.log('[WaitingRoom] Game in progress, redirecting to game');
+          // console.log('[WaitingRoom] Game in progress, redirecting to game');
           clearTimeout(joinTimeout);
           if (!cancelled) {
             const currentGameType = useGameStore.getState().gameType;
@@ -136,7 +130,7 @@ export function WaitingRoom() {
 
         // If game is finished and we're NOT in the room, show error (new players can't join finished games)
         if (status === 'finished') {
-          console.log('[WaitingRoom] Game finished and not in room');
+          // console.log('[WaitingRoom] Game finished and not in room');
           clearTimeout(joinTimeout);
           if (!cancelled) {
             setError('This game has already ended.');
@@ -147,13 +141,13 @@ export function WaitingRoom() {
 
         // If we have the room code but aren't in Firebase, try to rejoin (handles refresh)
         if (currentRoomCode === targetRoomCode && !isInRoom) {
-          console.log('[WaitingRoom] Have room code but not in Firebase, attempting rejoin');
+          // console.log('[WaitingRoom] Have room code but not in Firebase, attempting rejoin');
           const success = await rejoinRoom();
           clearTimeout(joinTimeout);
           if (!cancelled) {
             if (!success) {
               // Rejoin failed - need to join fresh
-              console.log('[WaitingRoom] Rejoin failed, redirecting to join page');
+              // console.log('[WaitingRoom] Rejoin failed, redirecting to join page');
               const currentGameType = useGameStore.getState().gameType;
               const paths = getGamePaths(currentGameType);
               navigate(`${paths.lobby}?room=${targetRoomCode}`);
@@ -165,7 +159,7 @@ export function WaitingRoom() {
 
         // We have a URL room code but no current room - need to join
         // Redirect to main menu where they can enter their name
-        console.log('[WaitingRoom] Need to join room, redirecting to main menu');
+        // console.log('[WaitingRoom] Need to join room, redirecting to main menu');
         clearTimeout(joinTimeout);
         if (!cancelled) {
           const currentGameType = useGameStore.getState().gameType;

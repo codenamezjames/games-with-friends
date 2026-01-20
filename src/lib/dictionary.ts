@@ -20,7 +20,7 @@ export async function loadExtendedDictionary(): Promise<void> {
 
     // Add all words to dictionary
     words.forEach((word) => DICTIONARY.add(word));
-    console.log(`Dictionary loaded: ${DICTIONARY.size} words`);
+    // Dictionary loaded successfully
   } catch (error) {
     console.warn(
       'Could not load extended dictionary, using base dictionary:',

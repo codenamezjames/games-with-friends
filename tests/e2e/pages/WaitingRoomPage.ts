@@ -154,10 +154,18 @@ export class WaitingRoomPage extends BasePage {
 
   /**
    * Set game duration (host only).
-   * @param duration Duration label like "10s" (test only on localhost), "1 min", "2 min", "3 min", "5 min"
+   * @param duration Duration label like "2s" (test only on localhost), "1 min", "2 min", "3 min", "5 min"
    */
-  async setDuration(duration: '10s' | '1 min' | '2 min' | '3 min' | '5 min') {
+  async setDuration(duration: '2s' | '1 min' | '2 min' | '3 min' | '5 min') {
     await this.page.getByRole('button', { name: duration }).click();
+  }
+
+  /**
+   * Select the 2s test duration (only available on localhost).
+   * Convenience method for e2e tests.
+   */
+  async selectTestDuration() {
+    await this.setDuration('2s');
   }
 
   /**

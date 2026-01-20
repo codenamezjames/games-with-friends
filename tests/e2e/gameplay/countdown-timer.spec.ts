@@ -16,6 +16,7 @@ test.describe('Game Countdown and Timer', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(generateTestPlayerName('Host'));
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -53,6 +54,7 @@ test.describe('Game Countdown and Timer', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(generateTestPlayerName('Host'));
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -90,6 +92,8 @@ test.describe('Game Countdown and Timer', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(generateTestPlayerName('Host'));
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      // Use 1 min duration for this test so we can verify countdown
+      await hostWaitingRoom.setDuration('1 min');
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -107,8 +111,8 @@ test.describe('Game Countdown and Timer', () => {
       // Get initial time
       const initialTime = await hostGame.getTimeRemainingSeconds();
 
-      // Wait a couple seconds
-      await hostPage.waitForTimeout(2500);
+      // Wait a second
+      await hostPage.waitForTimeout(1500);
 
       // Timer should have decreased
       const laterTime = await hostGame.getTimeRemainingSeconds();
@@ -132,6 +136,7 @@ test.describe('Game Countdown and Timer', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(generateTestPlayerName('Host'));
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -174,6 +179,7 @@ test.describe('Game Countdown and Timer', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(generateTestPlayerName('Host'));
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -219,6 +225,7 @@ test.describe('Game Countdown and Timer', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(generateTestPlayerName('Host'));
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();

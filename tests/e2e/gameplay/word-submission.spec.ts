@@ -16,6 +16,7 @@ test.describe('Word Submission and Scoring', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(generateTestPlayerName('Host'));
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -70,6 +71,7 @@ test.describe('Word Submission and Scoring', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(generateTestPlayerName('Host'));
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -114,6 +116,7 @@ test.describe('Word Submission and Scoring', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(generateTestPlayerName('Host'));
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -159,6 +162,7 @@ test.describe('Word Submission and Scoring', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(generateTestPlayerName('Host'));
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -217,6 +221,7 @@ test.describe('Word Submission and Scoring', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(generateTestPlayerName('Host'));
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -233,13 +238,11 @@ test.describe('Word Submission and Scoring', () => {
       // Trace 3+ adjacent cells
       await hostGame.traceWord([0, 1, 2]);
 
-      // Should show some feedback (success or error)
-      // Either success (points) or error (not a word, invalid, etc.)
-      const hasSuccess = await hostGame.feedbackSuccess.isVisible().catch(() => false);
-      const hasError = await hostGame.feedbackError.isVisible().catch(() => false);
+      // Wait for feedback to appear (either success or error)
+      const hasFeedback = await hostGame.waitForAnyFeedback(3000);
 
-      // One of them should be visible
-      expect(hasSuccess || hasError).toBe(true);
+      // Should show some feedback
+      expect(hasFeedback).toBe(true);
     } finally {
       await hostContext.close();
       await guestContext.close();
@@ -262,6 +265,7 @@ test.describe('Word Submission and Scoring', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(hostName);
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();

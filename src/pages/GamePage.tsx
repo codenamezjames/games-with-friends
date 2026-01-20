@@ -86,10 +86,10 @@ export function GamePage() {
 
         // Check if host left entirely (no host in players list)
         if (!hostExists) {
-          console.log('[GamePage] No host found in room');
+          // console.log('[GamePage] No host found in room');
           // Immediately try to claim host if we should be the new one
           if (shouldBecomeHost(players, playerId)) {
-            console.log('[GamePage] Claiming host role (host left)');
+            // console.log('[GamePage] Claiming host role (host left)');
             claimHost();
           }
         }
@@ -97,17 +97,17 @@ export function GamePage() {
         else if (host?.isConnected === false) {
           // Host is disconnected - start transfer timer if not already running
           if (!hostTransferTimerRef.current) {
-            console.log('[GamePage] Host disconnected, starting transfer timer');
+            // console.log('[GamePage] Host disconnected, starting transfer timer');
             hostTransferTimerRef.current = setTimeout(async () => {
               // Re-check if host is still disconnected
               const currentPlayers = cachedPlayersRef.current;
               const currentHost = Object.values(currentPlayers).find((p) => p.isHost);
 
               if (currentHost && currentHost.isConnected === false) {
-                console.log('[GamePage] Host still disconnected after grace period');
+                // console.log('[GamePage] Host still disconnected after grace period');
                 // Check if we should become the new host
                 if (shouldBecomeHost(currentPlayers, playerId)) {
-                  console.log('[GamePage] Claiming host role');
+                  // console.log('[GamePage] Claiming host role');
                   await claimHost();
                 }
               }
@@ -117,7 +117,7 @@ export function GamePage() {
         } else {
           // Host is connected - cancel any pending transfer
           if (hostTransferTimerRef.current) {
-            console.log('[GamePage] Host reconnected, canceling transfer');
+            // console.log('[GamePage] Host reconnected, canceling transfer');
             clearTimeout(hostTransferTimerRef.current);
             hostTransferTimerRef.current = null;
           }
@@ -128,7 +128,7 @@ export function GamePage() {
           const isHostInFirebase = players[playerId].isHost === true;
           const currentIsHost = useRoomStore.getState().isHost;
           if (isHostInFirebase !== currentIsHost) {
-            console.log('[GamePage] Updating isHost from', currentIsHost, 'to', isHostInFirebase);
+            // console.log('[GamePage] Updating isHost from', currentIsHost, 'to', isHostInFirebase);
             setIsHost(isHostInFirebase);
             // Notify user if they became host
             if (isHostInFirebase && !currentIsHost) {
@@ -185,11 +185,11 @@ export function GamePage() {
 
       // Read fresh values from store (not from closure which may be stale)
       const { roomCode: currentRoomCode, playerId: currentPlayerId } = useRoomStore.getState();
-      console.log('[GamePage] Attempting rejoin', { roomCode: currentRoomCode, playerId: currentPlayerId });
+      // console.log('[GamePage] Attempting rejoin', { roomCode: currentRoomCode, playerId: currentPlayerId });
 
       // If no room code at all, fail fast
       if (!currentRoomCode && !urlRoomCode) {
-        console.log('[GamePage] No room code available');
+        // console.log('[GamePage] No room code available');
         setRejoinFailed(true);
         setIsRejoining(false);
         return;
@@ -210,7 +210,7 @@ export function GamePage() {
           const roomSnapshot = await get(roomRef);
 
           if (!roomSnapshot.exists()) {
-            console.log('[GamePage] Room no longer exists');
+            // console.log('[GamePage] Room no longer exists');
             clearTimeout(rejoinTimeout);
             resetRoom();
             resetGame();
@@ -225,7 +225,7 @@ export function GamePage() {
 
           // If game is finished, redirect to results or home
           if (status === 'finished') {
-            console.log('[GamePage] Game already finished');
+            // console.log('[GamePage] Game already finished');
             clearTimeout(rejoinTimeout);
             if (roomData?.gameState?.results) {
               // Apply the results state and go to results
@@ -243,7 +243,7 @@ export function GamePage() {
 
           // If room is in waiting state, go back to lobby
           if (status === 'waiting') {
-            console.log('[GamePage] Room is in waiting state, going to lobby');
+            // console.log('[GamePage] Room is in waiting state, going to lobby');
             clearTimeout(rejoinTimeout);
             setIsRejoining(false);
             const paths = getGamePaths(useGameStore.getState().gameType, currentRoomCode);
@@ -253,7 +253,7 @@ export function GamePage() {
 
           const success = await rejoinRoom();
           clearTimeout(rejoinTimeout);
-          console.log('[GamePage] Rejoin result:', success);
+          // console.log('[GamePage] Rejoin result:', success);
           if (!success) {
             setRejoinFailed(true);
           }
@@ -278,7 +278,7 @@ export function GamePage() {
   useEffect(() => {
     // Only start timeout if we're past rejoining and still waiting for grid
     if (!isRejoining && grid.length === 0 && !loadingError && !rejoinFailed) {
-      console.log('[GamePage] Starting grid load timeout');
+      // console.log('[GamePage] Starting grid load timeout');
       gridTimeoutRef.current = setTimeout(() => {
         console.warn('[GamePage] Grid load timeout exceeded');
         setLoadingError('Failed to load game data. The game may have ended.');
@@ -287,7 +287,7 @@ export function GamePage() {
 
     // Clear timeout if grid arrives
     if (grid.length > 0 && gridTimeoutRef.current) {
-      console.log('[GamePage] Grid received, clearing timeout');
+      // console.log('[GamePage] Grid received, clearing timeout');
       clearTimeout(gridTimeoutRef.current);
       gridTimeoutRef.current = null;
     }
@@ -344,7 +344,7 @@ export function GamePage() {
   }
 
   // Show loading while rejoining or waiting for grid
-  console.log('[GamePage] Render state', { isRejoining, gridLength: grid.length, roomCode });
+  // console.log('[GamePage] Render state', { isRejoining, gridLength: grid.length, roomCode });
   if (isRejoining || grid.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-2">

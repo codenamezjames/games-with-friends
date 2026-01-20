@@ -19,6 +19,7 @@ test.describe('Multiplayer Score Sync', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(hostName);
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -61,6 +62,7 @@ test.describe('Multiplayer Score Sync', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(hostName);
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -107,6 +109,7 @@ test.describe('Multiplayer Score Sync', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(hostName);
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -145,6 +148,7 @@ test.describe('Multiplayer Score Sync', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(hostName);
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -193,6 +197,7 @@ test.describe('Multiplayer Score Sync', () => {
       await hostMenu.goto();
       const roomCode = await hostMenu.createRoom(hostName);
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
+      await hostWaitingRoom.selectTestDuration(); // 2s game for fast tests
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();

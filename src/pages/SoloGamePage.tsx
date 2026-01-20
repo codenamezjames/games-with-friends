@@ -28,6 +28,9 @@ const TIME_OPTIONS = [
   { value: 180, label: '3:00', description: 'Extended' },
 ];
 
+// 2s test option for localhost (e2e tests)
+const TEST_TIME_OPTION = { value: 2, label: '0:02', description: 'Test' };
+
 const DEFAULT_DURATION = 120;
 const DEFAULT_GRID_SIZE = 5;
 
@@ -71,6 +74,12 @@ export function SoloGamePage() {
   const [selectedGridSize, setSelectedGridSize] = useState(DEFAULT_GRID_SIZE);
   const [selectedDuration, setSelectedDuration] = useState(DEFAULT_DURATION);
   const [isSetup, setIsSetup] = useState(true);
+
+  // Share and UI state
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle');
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showVignette, setShowVignette] = useState(false);
+  const [isNewBest, setIsNewBest] = useState(false);
 
   // Derive showCountdown from phase
   const showCountdown = phase === 'countdown' && startTime !== null;
@@ -249,7 +258,9 @@ export function SoloGamePage() {
   useEffect(() => {
     if (prevTimeRef.current > 10 && timeRemaining === 10) {
       setShowVignette(true);
-      setTimeout(() => setShowVignette(false), 1000);
+      const timer = setTimeout(() => setShowVignette(false), 1000);
+      prevTimeRef.current = timeRemaining;
+      return () => clearTimeout(timer);
     }
     prevTimeRef.current = timeRemaining;
   }, [timeRemaining]);
@@ -305,12 +316,6 @@ export function SoloGamePage() {
   const myWords = foundWords[playerId] || [];
   const myWordCount = wordCounts[playerId] || 0;
   const myFinalScore = calculateScore(myWords);
-
-  // Share functionality
-  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle');
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
-  const [showVignette, setShowVignette] = useState(false);
-  const [isNewBest, setIsNewBest] = useState(false);
 
   const handleShare = useCallback(async () => {
     const shareText = [
@@ -378,20 +383,26 @@ export function SoloGamePage() {
           <div className="mb-8">
             <label className="block text-text-muted text-sm mb-3">Time Limit</label>
             <div className="grid grid-cols-3 gap-2">
-              {TIME_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setSelectedDuration(option.value)}
-                  className={`p-3 rounded-lg border-2 transition-all ${
-                    selectedDuration === option.value
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-transparent bg-bg-cell text-text-secondary hover:bg-bg-cell/80'
-                  }`}
-                >
-                  <div className="text-xl font-bold">{option.label}</div>
-                  <div className="text-xs opacity-70">{option.description}</div>
-                </button>
-              ))}
+              {(() => {
+                // Show test duration option on localhost (for e2e tests)
+                const isLocalhost = typeof window !== 'undefined' &&
+                  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                const options = isLocalhost ? [TEST_TIME_OPTION, ...TIME_OPTIONS] : TIME_OPTIONS;
+                return options.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setSelectedDuration(option.value)}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      selectedDuration === option.value
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-transparent bg-bg-cell text-text-secondary hover:bg-bg-cell/80'
+                    }`}
+                  >
+                    <div className="text-xl font-bold">{option.label}</div>
+                    <div className="text-xs opacity-70">{option.description}</div>
+                  </button>
+                ));
+              })()}
             </div>
           </div>
 

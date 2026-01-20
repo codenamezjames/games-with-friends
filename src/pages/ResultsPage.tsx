@@ -142,19 +142,23 @@ export function ResultsPage() {
     }
   }, [animPhase, roomCode, localPlayerId, results, isSpectator, foundWords, gridSize, gameSettings.duration, recordGame, checkAchievements]);
 
+  // Memoize initial scores calculation
+  const initialScores = useMemo(() => {
+    const scores: Record<string, number> = {};
+    Object.keys(players).forEach((id) => {
+      if (!players[id].isSpectator) {
+        scores[id] = 0;
+      }
+    });
+    return scores;
+  }, [players]);
+
   // Initialize scores to 0 (only once to prevent resetting during ready check)
   useEffect(() => {
     if (hasInitializedScoresRef.current) return;
-
-    const initialScores: Record<string, number> = {};
-    Object.keys(players).forEach((id) => {
-      if (!players[id].isSpectator) {
-        initialScores[id] = 0;
-      }
-    });
     setAnimatedScores(initialScores);
     hasInitializedScoresRef.current = true;
-  }, [players]);
+  }, [initialScores]);
 
   // Get player name by ID
   const getPlayerName = useCallback((playerId: string) => {
@@ -249,7 +253,7 @@ export function ResultsPage() {
 
     if (!currentIsHost || !currentRoomCode) return;
 
-    console.log('[ResultsPage] handleStartRematch called', { markUnreadyAsSpectators });
+    // console.log('[ResultsPage] handleStartRematch called', { markUnreadyAsSpectators });
     isLeavingRef.current = true;
 
     try {

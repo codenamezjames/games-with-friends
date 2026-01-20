@@ -14,7 +14,7 @@ import { generateTestPlayerName, waitForFirebaseSync, findValidWords, findDistin
 
 test.describe('Full Game with Rematch', () => {
   test('two players play full game with words and rematch', async ({ browser }) => {
-    test.setTimeout(120000); // 2 minutes for two 10s games + setup/transitions
+    test.setTimeout(60000); // 1 minute for two 2s games + setup/transitions
 
     const hostContext = await browser.newContext();
     const guestContext = await browser.newContext();
@@ -35,8 +35,8 @@ test.describe('Full Game with Rematch', () => {
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
       await hostWaitingRoom.expectVisible();
 
-      // Set 10s test duration for faster tests
-      await hostWaitingRoom.setDuration('10s');
+      // Set 2s test duration for faster tests
+      await hostWaitingRoom.selectTestDuration();
 
       // Guest joins
       const guestMenu = new MainMenuPage(guestPage);
@@ -92,18 +92,18 @@ test.describe('Full Game with Rematch', () => {
         }
       }
 
-      // Wait for game to end (10s game + countdown + buffer)
+      // Wait for game to end (2s game + countdown + buffer)
       await Promise.all([
-        hostGame.waitForGameEnd(30000),
-        guestGame.waitForGameEnd(30000),
+        hostGame.waitForGameEnd(15000),
+        guestGame.waitForGameEnd(15000),
       ]);
 
       // Wait for winner phase on both
       const hostResults = new ResultsPage(hostPage);
       const guestResults = new ResultsPage(guestPage);
       await Promise.all([
-        hostResults.waitForWinnerPhase(30000),
-        guestResults.waitForWinnerPhase(30000),
+        hostResults.waitForWinnerPhase(15000),
+        guestResults.waitForWinnerPhase(15000),
       ]);
 
       // Verify ready check panel is visible
@@ -168,16 +168,16 @@ test.describe('Full Game with Rematch', () => {
 
       // Wait for second game to end
       await Promise.all([
-        hostGame2.waitForGameEnd(30000),
-        guestGame2.waitForGameEnd(30000),
+        hostGame2.waitForGameEnd(15000),
+        guestGame2.waitForGameEnd(15000),
       ]);
 
       // Wait for winner phase on both
       const hostResults2 = new ResultsPage(hostPage);
       const guestResults2 = new ResultsPage(guestPage);
       await Promise.all([
-        hostResults2.waitForWinnerPhase(30000),
-        guestResults2.waitForWinnerPhase(30000),
+        hostResults2.waitForWinnerPhase(15000),
+        guestResults2.waitForWinnerPhase(15000),
       ]);
 
       // Verify we reached winner phase after second game
@@ -195,7 +195,7 @@ test.describe('Full Game with Rematch', () => {
   });
 
   test('players can submit words and see scores update', async ({ browser }) => {
-    test.setTimeout(90000);
+    test.setTimeout(45000);
 
     const hostContext = await browser.newContext();
     const guestContext = await browser.newContext();
@@ -213,7 +213,7 @@ test.describe('Full Game with Rematch', () => {
       const roomCode = await hostMenu.createRoom(hostName);
 
       const hostWaitingRoom = new WaitingRoomPage(hostPage);
-      await hostWaitingRoom.setDuration('10s');
+      await hostWaitingRoom.selectTestDuration();
 
       const guestMenu = new MainMenuPage(guestPage);
       await guestMenu.goto();
@@ -249,13 +249,13 @@ test.describe('Full Game with Rematch', () => {
 
       // Wait for game end
       await Promise.all([
-        hostGame.waitForGameEnd(30000),
-        guestGame.waitForGameEnd(30000),
+        hostGame.waitForGameEnd(15000),
+        guestGame.waitForGameEnd(15000),
       ]);
 
       // Verify results
       const hostResults = new ResultsPage(hostPage);
-      await hostResults.waitForWinnerPhase(30000);
+      await hostResults.waitForWinnerPhase(15000);
 
     } finally {
       await hostContext.close();

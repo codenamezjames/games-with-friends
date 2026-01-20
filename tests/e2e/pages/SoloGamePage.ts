@@ -17,20 +17,33 @@ export class SoloGamePage extends GamePage {
   readonly backToMenuButton: Locator;
   readonly shareResultsButton: Locator;
 
+  // Setup screen locators
+  readonly startGameButton: Locator;
+  readonly gridSizeOptions: Locator;
+  readonly timeOptions: Locator;
+  readonly testDurationButton: Locator;
+
   constructor(page: Page) {
     super(page);
 
     // Main page elements
     this.soloHeader = page.getByRole('heading', { name: 'Solo Practice' });
-    this.scoreDisplay = page.locator('.bg-bg-card .text-2xl.font-bold.text-primary');
-    this.wordCountDisplay = page.locator('.bg-bg-card .text-xs.text-text-muted');
+    // Word count is shown during gameplay as "X words"
+    this.wordCountDisplay = page.getByText(/\d+\s+words?/);
+    this.scoreDisplay = this.wordCountDisplay; // Solo mode shows word count, not score
+
+    // Setup screen elements
+    this.startGameButton = page.getByRole('button', { name: 'Start Game' });
+    this.gridSizeOptions = page.getByText('4×4').locator('..');
+    this.timeOptions = page.getByText('Sprint').locator('..');
+    this.testDurationButton = page.getByText('0:02').locator('..');
 
     // Results modal elements
     this.resultsModal = page.locator('.fixed.inset-0.bg-black\\/70');
     this.resultsTitle = page.getByRole('heading', { name: 'Game Over!' });
     this.finalScoreDisplay = page.locator('.text-6xl.font-bold.text-accent');
     this.playAgainButton = page.getByRole('button', { name: /play again/i });
-    this.backToMenuButton = page.getByRole('button', { name: /back to menu/i });
+    this.backToMenuButton = page.getByRole('button', { name: /^exit$/i });
     this.shareResultsButton = page.getByRole('button', { name: /share/i });
   }
 
@@ -53,6 +66,7 @@ export class SoloGamePage extends GamePage {
    * Get word count.
    */
   async getWordCount(): Promise<number> {
+    await this.wordCountDisplay.waitFor({ state: 'visible', timeout: 5000 });
     const text = await this.getTextContent(this.wordCountDisplay);
     const match = text.match(/(\d+)/);
     return match ? parseInt(match[1]) : 0;
@@ -106,11 +120,46 @@ export class SoloGamePage extends GamePage {
   }
 
   /**
-   * Verify solo game page is displayed.
+   * Verify solo game setup screen is displayed.
+   */
+  async expectSetupVisible() {
+    await expect(this.soloHeader).toBeVisible();
+    await expect(this.startGameButton).toBeVisible();
+  }
+
+  /**
+   * Verify solo game page is displayed (either setup or gameplay).
    */
   async expectVisible() {
     await expect(this.soloHeader).toBeVisible();
-    await expect(this.grid).toBeVisible();
+    // Check for either setup screen (Start Game button) or gameplay (cells)
+    const hasStartButton = await this.startGameButton.isVisible().catch(() => false);
+    const hasCells = await this.cells.first().isVisible().catch(() => false);
+    expect(hasStartButton || hasCells).toBe(true);
+  }
+
+  /**
+   * Select the 10s test duration (only available on localhost).
+   */
+  async selectTestDuration() {
+    await this.testDurationButton.click();
+  }
+
+  /**
+   * Start the game from the setup screen.
+   */
+  async startGame() {
+    await this.startGameButton.click();
+    // Wait for countdown or game to start
+    await this.waitForGameReady();
+  }
+
+  /**
+   * Start game with 10s test duration for faster tests.
+   */
+  async startTestGame() {
+    await this.selectTestDuration();
+    await this.startGame();
   }
 
   /**

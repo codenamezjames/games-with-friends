@@ -179,7 +179,7 @@ export function WordTraceBoard() {
     const currentIsHost = useRoomStore.getState().isHost;
 
     if (currentIsHost && phase === 'playing' && currentTimeRemaining > 0 && !showCountdown && !timerRef.current) {
-      console.log('[WordTraceBoard] Starting timer for host, timeRemaining:', currentTimeRemaining);
+      // console.log('[WordTraceBoard] Starting timer for host, timeRemaining:', currentTimeRemaining);
 
       timerRef.current = window.setInterval(async () => {
         const { timeRemaining, setTimeRemaining } = useGameStore.getState();
@@ -219,7 +219,7 @@ export function WordTraceBoard() {
       // Check current phase - only clear if we're actually leaving playing state
       const { phase: currentPhase } = useGameStore.getState();
       if (timerRef.current && currentPhase !== 'playing') {
-        console.log('[WordTraceBoard] Cleanup: clearing timer (phase:', currentPhase, ')');
+        // console.log('[WordTraceBoard] Cleanup: clearing timer (phase:', currentPhase, ')');
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
@@ -242,13 +242,13 @@ export function WordTraceBoard() {
 
     // When timer reaches 0, start grace period
     if (timeRemaining <= 0 && !hasEndedRef.current) {
-      console.log('[WordTraceBoard] Guest detected timer at 0, starting fallback timer');
+      // console.log('[WordTraceBoard] Guest detected timer at 0, starting fallback timer');
 
       // Wait 5 seconds for host to end the game
       guestFallbackRef.current = window.setTimeout(() => {
         const currentPhase = useGameStore.getState().phase;
         if (currentPhase === 'playing' && !hasEndedRef.current) {
-          console.log('[WordTraceBoard] Guest fallback: host did not end game, navigating to results');
+          // console.log('[WordTraceBoard] Guest fallback: host did not end game, navigating to results');
           hasEndedRef.current = true;
           playSound('gameEnd');
           const paths = getGamePaths(gameType);
@@ -416,7 +416,9 @@ export function WordTraceBoard() {
   useEffect(() => {
     if (prevTimeRef.current > 10 && timeRemaining === 10) {
       setShowVignette(true);
-      setTimeout(() => setShowVignette(false), 1000);
+      const timer = setTimeout(() => setShowVignette(false), 1000);
+      prevTimeRef.current = timeRemaining;
+      return () => clearTimeout(timer);
     }
     prevTimeRef.current = timeRemaining;
   }, [timeRemaining]);

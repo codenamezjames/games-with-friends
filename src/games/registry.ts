@@ -17,7 +17,7 @@ export function registerGame(config: GameConfig): void {
     return;
   }
   gameConfigs.set(config.id, config);
-  console.log(`[GameRegistry] Registered game: ${config.id}`);
+  // Game registered successfully
 }
 
 /**

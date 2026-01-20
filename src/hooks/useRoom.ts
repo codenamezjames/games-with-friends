@@ -213,7 +213,7 @@ export function useRoom() {
           [`players/${currentPlayerId}/isHost`]: false,
           [`players/${newHostId}/isHost`]: true,
         });
-        console.log('[useRoom] Transferred host to', newHostId);
+        // console.log('[useRoom] Transferred host to', newHostId);
       }
     }
 

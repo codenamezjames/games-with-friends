@@ -1,20 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useLocalGameStore } from '@/stores/useLocalGameStore';
 
 export function Feedback() {
   const { lastFeedback, setFeedback } = useLocalGameStore();
   const [visible, setVisible] = useState(false);
+  const wasShownRef = useRef(false);
 
+  // Show feedback when new feedback arrives
   useEffect(() => {
-    if (lastFeedback) {
-      setVisible(true);
-      const timer = setTimeout(() => {
-        setVisible(false);
-        setTimeout(() => setFeedback(null), 200);
-      }, 1000);
-      return () => clearTimeout(timer);
+    if (!lastFeedback) return;
+    wasShownRef.current = true;
+    setVisible(true);
+    const hideTimer = setTimeout(() => setVisible(false), 1000);
+    return () => clearTimeout(hideTimer);
+  }, [lastFeedback]);
+
+  // Clear feedback after fade out (only if it was actually shown)
+  useEffect(() => {
+    if (!visible && lastFeedback && wasShownRef.current) {
+      wasShownRef.current = false;
+      const clearTimer = setTimeout(() => setFeedback(null), 200);
+      return () => clearTimeout(clearTimer);
     }
-  }, [lastFeedback, setFeedback]);
+  }, [visible, lastFeedback, setFeedback]);
 
   if (!lastFeedback) return null;
 

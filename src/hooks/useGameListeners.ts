@@ -32,14 +32,14 @@ export function useGameListeners() {
       gameStateRef,
       (snapshot) => {
         const state = snapshot.val() as SerializableGameState | null;
-        console.log('[useGameListeners] Firebase state received:', { state, isHost, hasLoaded: hasLoadedInitialState.current });
+        // console.log('[useGameListeners] Firebase state received:', { state, isHost, hasLoaded: hasLoadedInitialState.current });
         if (!state) return;
 
         // Always apply on first load (handles refresh for both host and guest)
         // After that, only guest applies updates (host is the authority)
         if (!hasLoadedInitialState.current) {
           hasLoadedInitialState.current = true;
-          console.log('[useGameListeners] Applying initial state, grid length:', state.grid?.length);
+          // console.log('[useGameListeners] Applying initial state, grid length:', state.grid?.length);
           applyStateFromFirebase(state);
         } else if (!isHost) {
           applyStateFromFirebase(state);
@@ -51,7 +51,7 @@ export function useGameListeners() {
         if (!isHost && state.phase === 'finished' && !hasNavigatedToResults.current && roomStatus !== 'waiting') {
           hasNavigatedToResults.current = true;
           const paths = getGamePaths(gameType);
-          console.log('[useGameListeners] Game finished, navigating to results');
+          // console.log('[useGameListeners] Game finished, navigating to results');
           navigate(paths.results);
         }
 
@@ -61,7 +61,7 @@ export function useGameListeners() {
         if (!isHost && (state.phase === 'countdown' || state.phase === 'playing') && isOnResultsPage && !hasNavigatedToGame.current) {
           hasNavigatedToGame.current = true;
           const paths = getGamePaths(gameType, roomCode);
-          console.log('[useGameListeners] Rematch started, navigating to game');
+          // console.log('[useGameListeners] Rematch started, navigating to game');
           navigate(paths.play);
         }
       },

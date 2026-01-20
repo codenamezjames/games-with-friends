@@ -28,6 +28,7 @@ export function ReadyCheckPanel({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [autoStartCountdown, setAutoStartCountdown] = useState<number | null>(null);
   const hasStartedRef = useRef(false);
+  const hasTriggeredCountdownRef = useRef(false);
 
   const { gameSettings, players: storePlayers, playerId } = useRoomStore();
   const { updateGameSettings } = useRoom();
@@ -86,10 +87,15 @@ export function ReadyCheckPanel({
 
   // Handle all ready - start auto-start countdown
   useEffect(() => {
-    if (allReady && activePlayers.length > 0 && autoStartCountdown === null && !hasStartedRef.current) {
+    if (allReady && activePlayers.length > 0 && !hasTriggeredCountdownRef.current && !hasStartedRef.current) {
+      hasTriggeredCountdownRef.current = true;
       setAutoStartCountdown(AUTO_START_COUNTDOWN);
     }
-  }, [allReady, activePlayers.length, autoStartCountdown]);
+    // Reset when conditions change
+    if (!allReady || activePlayers.length === 0) {
+      hasTriggeredCountdownRef.current = false;
+    }
+  }, [allReady, activePlayers.length]);
 
   // Auto-start countdown timer
   useEffect(() => {

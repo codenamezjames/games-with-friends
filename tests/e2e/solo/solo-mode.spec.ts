@@ -10,11 +10,17 @@ test.describe('Solo Mode Game Start', () => {
     const playerName = generateTestPlayerName('Solo');
     await mainMenu.startSoloMode(playerName);
 
-    // Should be on solo game page
+    // Should be on solo game page (setup screen)
     await expect(page).toHaveURL(/\/games\/wordtrace\/solo/);
 
     const soloGame = new SoloGamePage(page);
-    await soloGame.expectVisible();
+    await soloGame.expectSetupVisible();
+
+    // Start the game
+    await soloGame.startGame();
+
+    // Should now be in gameplay
+    await soloGame.expectTimerVisible();
   });
 
   test('solo game shows countdown then starts', async ({ page }) => {
@@ -24,9 +30,8 @@ test.describe('Solo Mode Game Start', () => {
 
     const soloGame = new SoloGamePage(page);
 
-    // Countdown may have passed quickly, so just verify game eventually starts
-    // Wait for game to be ready (cells interactive)
-    await soloGame.waitForGameReady();
+    // Start the game from setup screen
+    await soloGame.startGame();
 
     // Timer should be visible and counting
     await soloGame.expectTimerVisible();
@@ -42,7 +47,7 @@ test.describe('Solo Mode Game Start', () => {
     await mainMenu.startSoloMode(generateTestPlayerName('Solo'));
 
     const soloGame = new SoloGamePage(page);
-    await soloGame.waitForGameReady();
+    await soloGame.startGame();
 
     // Timer should show time
     const time = await soloGame.getTimeRemainingSeconds();
@@ -60,11 +65,11 @@ test.describe('Solo Mode Game Start', () => {
     await mainMenu.startSoloMode(generateTestPlayerName('Solo'));
 
     const soloGame = new SoloGamePage(page);
-    await soloGame.waitForGameReady();
+    await soloGame.startGame();
 
-    // Score should be 0
-    const score = await soloGame.getScore();
-    expect(score).toBe(0);
+    // Word count should show 0 words
+    const wordCount = await soloGame.getWordCount();
+    expect(wordCount).toBe(0);
   });
 });
 
@@ -75,7 +80,7 @@ test.describe('Solo Mode Gameplay', () => {
     await mainMenu.startSoloMode(generateTestPlayerName('Solo'));
 
     const soloGame = new SoloGamePage(page);
-    await soloGame.waitForGameReady();
+    await soloGame.startGame();
 
     // Trace some cells
     const firstCell = soloGame.getCell(0);
@@ -97,17 +102,20 @@ test.describe('Solo Mode Gameplay', () => {
     await mainMenu.startSoloMode(generateTestPlayerName('Solo'));
 
     const soloGame = new SoloGamePage(page);
-    await soloGame.waitForGameReady();
+    await soloGame.startGame();
 
-    // Trace 3+ cells to attempt word submission
+    // Small delay to ensure game is fully ready
+    await page.waitForTimeout(200);
+
+    // Trace 3+ adjacent cells to attempt word submission
     await soloGame.traceWord([0, 1, 2]);
 
-    // Should show some feedback (success or error)
-    const hasSuccess = await soloGame.feedbackSuccess.isVisible().catch(() => false);
-    const hasError = await soloGame.feedbackError.isVisible().catch(() => false);
+    // Check for any feedback message by looking for specific text
+    // Possible messages: "Nice!", "Already found!", "Too short", "Not a word"
+    const feedbackLocator = page.getByText(/Nice!|Already found!|Too short|Not a word/);
 
-    // One of them should be visible
-    expect(hasSuccess || hasError).toBe(true);
+    // Wait for feedback to appear
+    await expect(feedbackLocator).toBeVisible({ timeout: 5000 });
   });
 
   test('timer decrements during gameplay', async ({ page }) => {
@@ -116,7 +124,7 @@ test.describe('Solo Mode Gameplay', () => {
     await mainMenu.startSoloMode(generateTestPlayerName('Solo'));
 
     const soloGame = new SoloGamePage(page);
-    await soloGame.waitForGameReady();
+    await soloGame.startGame();
 
     // Get initial time
     const initialTime = await soloGame.getTimeRemainingSeconds();
@@ -131,19 +139,20 @@ test.describe('Solo Mode Gameplay', () => {
 });
 
 test.describe('Solo Mode Results', () => {
-  // Uses 10s test duration on localhost
+  // Uses 2s test duration on localhost
   test('results modal appears when game ends', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(30000);
 
     const mainMenu = new MainMenuPage(page);
     await mainMenu.goto();
     await mainMenu.startSoloMode(generateTestPlayerName('Solo'));
 
     const soloGame = new SoloGamePage(page);
-    await soloGame.waitForGameReady();
+    // Select 2s test duration for faster test
+    await soloGame.startTestGame();
 
-    // Wait for game to end (10s game on localhost + countdown + buffer)
-    await soloGame.waitForResults(30000);
+    // Wait for game to end (2s game + countdown + buffer)
+    await soloGame.waitForResults(15000);
 
     // Results modal should be visible
     const hasResults = await soloGame.hasResultsModal();
@@ -154,17 +163,18 @@ test.describe('Solo Mode Results', () => {
   });
 
   test('play again starts new game', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(30000);
 
     const mainMenu = new MainMenuPage(page);
     await mainMenu.goto();
     await mainMenu.startSoloMode(generateTestPlayerName('Solo'));
 
     const soloGame = new SoloGamePage(page);
-    await soloGame.waitForGameReady();
+    // Select 2s test duration for faster test
+    await soloGame.startTestGame();
 
     // Wait for game to end
-    await soloGame.waitForResults(30000);
+    await soloGame.waitForResults(15000);
 
     // Click play again
     await soloGame.playAgain();
@@ -172,22 +182,23 @@ test.describe('Solo Mode Results', () => {
     // Should reset - results modal should close
     await expect(page.getByText('Game Over!')).not.toBeVisible({ timeout: 5000 });
 
-    // Should be able to wait for game ready again
+    // Should be able to wait for game ready again (play again goes directly to gameplay)
     await soloGame.waitForGameReady();
   });
 
   test('back to menu navigates to main menu', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(30000);
 
     const mainMenu = new MainMenuPage(page);
     await mainMenu.goto();
     await mainMenu.startSoloMode(generateTestPlayerName('Solo'));
 
     const soloGame = new SoloGamePage(page);
-    await soloGame.waitForGameReady();
+    // Select 2s test duration for faster test
+    await soloGame.startTestGame();
 
     // Wait for game to end
-    await soloGame.waitForResults(30000);
+    await soloGame.waitForResults(15000);
 
     // Click back to menu
     await soloGame.backToMenu();

@@ -95,22 +95,33 @@ export class GamePage extends BasePage {
     const box = await firstCell.boundingBox();
     if (!box) throw new Error('Could not get cell bounding box');
 
-    // Start the trace
+    // Start the trace - move to first cell and press down
     await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await this.page.mouse.down();
 
-    // Move through remaining cells
+    // Small delay to ensure pointerdown is processed
+    await this.page.waitForTimeout(50);
+
+    // Move through remaining cells with small delays for reliable event processing
+    let lastBox = box;
     for (let i = 1; i < indices.length; i++) {
       const cell = this.getCell(indices[i]);
       const cellBox = await cell.boundingBox();
       if (!cellBox) continue;
+
+      // Move to the center of each cell
       await this.page.mouse.move(
         cellBox.x + cellBox.width / 2,
-        cellBox.y + cellBox.height / 2
+        cellBox.y + cellBox.height / 2,
+        { steps: 5 } // Smoother movement for more reliable cell detection
       );
+      lastBox = cellBox;
+
+      // Small delay to ensure pointermove is processed
+      await this.page.waitForTimeout(30);
     }
 
-    // Release to submit
+    // Release at the last cell position to trigger submission
     await this.page.mouse.up();
   }
 
@@ -133,6 +144,31 @@ export class GamePage extends BasePage {
    */
   async expectErrorFeedback(timeout = 3000) {
     await expect(this.feedbackError).toBeVisible({ timeout });
+  }
+
+  /**
+   * Wait for any feedback (success or error) to appear.
+   * Returns true if feedback was found, false if timed out.
+   */
+  async waitForAnyFeedback(timeout = 3000): Promise<boolean> {
+    try {
+      await Promise.race([
+        this.feedbackSuccess.waitFor({ state: 'visible', timeout }),
+        this.feedbackError.waitFor({ state: 'visible', timeout }),
+      ]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Check if any feedback is currently visible.
+   */
+  async hasFeedback(): Promise<boolean> {
+    const hasSuccess = await this.feedbackSuccess.isVisible().catch(() => false);
+    const hasError = await this.feedbackError.isVisible().catch(() => false);
+    return hasSuccess || hasError;
   }
 
   /**

@@ -32,7 +32,7 @@ export const DURATION_OPTIONS = [
 ];
 
 // Test-only duration (shown in development/localhost environments)
-export const TEST_DURATION_OPTION = { value: 10, label: '10s' };
+export const TEST_DURATION_OPTION = { value: 2, label: '2s' };
 
 export const GRID_SIZE_OPTIONS = [
   { value: 4, label: '4x4' },

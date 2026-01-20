@@ -69,7 +69,7 @@ export function useRoomListeners() {
 
         // If no players left, room was probably deleted
         if (!players || Object.keys(players).length === 0) {
-          console.log('[useRoomListeners] Room appears to be empty or deleted');
+          // console.log('[useRoomListeners] Room appears to be empty or deleted');
           resetRoom();
           resetGame();
           navigate('/');
@@ -78,7 +78,7 @@ export function useRoomListeners() {
 
         // Check if we got kicked from the room
         if (playerId && !players[playerId]) {
-          console.log('[useRoomListeners] We were removed from the room');
+          // console.log('[useRoomListeners] We were removed from the room');
           resetRoom();
           resetGame();
           navigate('/');
@@ -115,10 +115,10 @@ export function useRoomListeners() {
 
         // Check if host left entirely (no host in players list)
         if (!hostExists) {
-          console.log('[useRoomListeners] No host found in room');
+          // console.log('[useRoomListeners] No host found in room');
           // Immediately try to claim host if we should be the new one
           if (shouldBecomeHost(players, playerId)) {
-            console.log('[useRoomListeners] Claiming host role (host left)');
+            // console.log('[useRoomListeners] Claiming host role (host left)');
             claimHost();
           }
         }
@@ -126,7 +126,7 @@ export function useRoomListeners() {
         else if (host?.isConnected === false) {
           // Host is disconnected - start transfer timer if not already running
           if (!hostTransferTimerRef.current) {
-            console.log('[useRoomListeners] Host disconnected, starting transfer timer');
+            // console.log('[useRoomListeners] Host disconnected, starting transfer timer');
             hostTransferTimerRef.current = setTimeout(async () => {
               // Fetch fresh data from Firebase to avoid race conditions with cached data
               const currentRoomCode = useRoomStore.getState().roomCode;
@@ -147,10 +147,10 @@ export function useRoomListeners() {
                 const currentHost = Object.values(freshPlayers).find((p) => p.isHost);
 
                 if (currentHost && currentHost.isConnected === false) {
-                  console.log('[useRoomListeners] Host still disconnected after grace period (verified with fresh data)');
+                  // console.log('[useRoomListeners] Host still disconnected after grace period (verified with fresh data)');
                   // Check if we should become the new host
                   if (shouldBecomeHost(freshPlayers, playerId)) {
-                    console.log('[useRoomListeners] Claiming host role');
+                    // console.log('[useRoomListeners] Claiming host role');
                     await claimHost();
                   }
                 }
@@ -164,7 +164,7 @@ export function useRoomListeners() {
         } else {
           // Host is connected - cancel any pending transfer
           if (hostTransferTimerRef.current) {
-            console.log('[useRoomListeners] Host reconnected, canceling transfer');
+            // console.log('[useRoomListeners] Host reconnected, canceling transfer');
             clearTimeout(hostTransferTimerRef.current);
             hostTransferTimerRef.current = null;
           }
@@ -175,7 +175,7 @@ export function useRoomListeners() {
           const isHostInFirebase = players[playerId]?.isHost === true;
           const currentIsHost = useRoomStore.getState().isHost;
           if (isHostInFirebase !== currentIsHost) {
-            console.log('[useRoomListeners] Updating isHost from', currentIsHost, 'to', isHostInFirebase);
+            // console.log('[useRoomListeners] Updating isHost from', currentIsHost, 'to', isHostInFirebase);
             setIsHost(isHostInFirebase);
             // Notify user if they became host
             if (isHostInFirebase && !currentIsHost) {
@@ -189,7 +189,7 @@ export function useRoomListeners() {
           const isSpectatorInFirebase = players[playerId]?.isSpectator === true;
           const currentIsSpectator = useRoomStore.getState().isSpectator;
           if (isSpectatorInFirebase !== currentIsSpectator) {
-            console.log('[useRoomListeners] Updating isSpectator from', currentIsSpectator, 'to', isSpectatorInFirebase);
+            // console.log('[useRoomListeners] Updating isSpectator from', currentIsSpectator, 'to', isSpectatorInFirebase);
             setIsSpectator(isSpectatorInFirebase);
           }
         }
@@ -202,9 +202,9 @@ export function useRoomListeners() {
       }
     );
 
-    // Listen to player leaving (for logging)
-    const unsubPlayerRemoved = onChildRemoved(playersDbRef, (snapshot) => {
-      console.log('[useRoomListeners] Player left:', snapshot.key, snapshot.val());
+    // Listen to player leaving (for cleanup)
+    const unsubPlayerRemoved = onChildRemoved(playersDbRef, () => {
+      // Player left - handled by the players listener
     });
 
     // Listen to status changes
@@ -216,7 +216,7 @@ export function useRoomListeners() {
 
         // If status is null, room might be deleted
         if (status === null) {
-          console.log('[useRoomListeners] Room status is null, room may be deleted');
+          // console.log('[useRoomListeners] Room status is null, room may be deleted');
           // Don't immediately navigate - let the players listener handle it
           return;
         }
@@ -241,7 +241,7 @@ export function useRoomListeners() {
 
         // If room finished and we're still in waiting room, show message
         if (status === 'finished') {
-          console.log('[useRoomListeners] Game finished while in lobby');
+          // console.log('[useRoomListeners] Game finished while in lobby');
         }
       },
       (error) => {
