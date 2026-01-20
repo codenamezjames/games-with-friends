@@ -61,6 +61,7 @@ export function SoloGamePage() {
 
   const initializedRef = useRef(false);
   const statsRecordedRef = useRef(false);
+  const prevTimeRef = useRef(timeRemaining);
 
   const playerId = 'solo-player';
 
@@ -241,6 +242,15 @@ export function SoloGamePage() {
     };
   }, []);
 
+  // Trigger vignette flash when timer crosses from 11 to 10 seconds
+  useEffect(() => {
+    if (prevTimeRef.current > 10 && timeRemaining === 10) {
+      setShowVignette(true);
+      setTimeout(() => setShowVignette(false), 1000);
+    }
+    prevTimeRef.current = timeRemaining;
+  }, [timeRemaining]);
+
   // Calculate score from words
   const calculateScore = (words: string[]) => {
     return words.reduce((total, word) => total + getWordPoints(word), 0);
@@ -280,6 +290,7 @@ export function SoloGamePage() {
   // Share functionality
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle');
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showVignette, setShowVignette] = useState(false);
 
   const handleShare = useCallback(async () => {
     const shareText = [
@@ -528,6 +539,9 @@ export function SoloGamePage() {
           </div>
         </div>
       )}
+
+      {/* 10-second warning vignette */}
+      {showVignette && <div className="warning-vignette" />}
     </div>
   );
 }

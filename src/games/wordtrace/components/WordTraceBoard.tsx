@@ -51,6 +51,8 @@ export function WordTraceBoard() {
 
   const [showCountdown, setShowCountdown] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showVignette, setShowVignette] = useState(false);
+  const prevTimeRef = useRef(timeRemaining);
 
   // Initialize game instance for host
   useEffect(() => {
@@ -410,6 +412,15 @@ export function WordTraceBoard() {
     };
   }, []);
 
+  // Trigger vignette flash when timer crosses from 11 to 10 seconds
+  useEffect(() => {
+    if (prevTimeRef.current > 10 && timeRemaining === 10) {
+      setShowVignette(true);
+      setTimeout(() => setShowVignette(false), 1000);
+    }
+    prevTimeRef.current = timeRemaining;
+  }, [timeRemaining]);
+
   // Format timer
   const minutes = Math.floor(timeRemaining / 60);
   const seconds = timeRemaining % 60;
@@ -512,6 +523,8 @@ export function WordTraceBoard() {
         )}
       </main>
 
+      {/* 10-second warning vignette */}
+      {showVignette && <div className="warning-vignette" />}
     </div>
   );
 }

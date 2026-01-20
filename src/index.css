@@ -422,3 +422,19 @@ body {
 .animate-shimmer {
   animation: shimmer 2s infinite;
 }
+
+/* 10-second warning vignette flash */
+@keyframes vignette-flash {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.warning-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(217, 83, 79, 0.35) 100%);
+  animation: vignette-flash 1s ease-out forwards;
+  z-index: 100;
+}
