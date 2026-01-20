@@ -4,12 +4,24 @@ import { useGameStore } from '@/stores/useGameStore';
 import { useRoom } from './useRoom';
 
 export function useGameTimer(onTimeUp: () => void) {
-  const { isHost } = useRoomStore();
-  const { phase, timeRemaining, setTimeRemaining } = useGameStore();
   const { updateGameStateFields } = useRoom();
   const intervalRef = useRef<number | null>(null);
+  const onTimeUpRef = useRef(onTimeUp);
+
+  // Subscribe to phase/isHost to trigger effect re-run when they change
+  const phase = useGameStore((state) => state.phase);
+  const isHost = useRoomStore((state) => state.isHost);
+  const timeRemaining = useGameStore((state) => state.timeRemaining);
+
+  // Keep onTimeUp ref updated
+  useEffect(() => {
+    onTimeUpRef.current = onTimeUp;
+  }, [onTimeUp]);
 
   const tick = useCallback(async () => {
+    // Read from store inside callback to avoid stale closures
+    const { timeRemaining, setTimeRemaining } = useGameStore.getState();
+
     const newTime = timeRemaining - 1;
     setTimeRemaining(newTime);
 
@@ -21,9 +33,9 @@ export function useGameTimer(onTimeUp: () => void) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      onTimeUp();
+      onTimeUpRef.current();
     }
-  }, [timeRemaining, setTimeRemaining, updateGameStateFields, onTimeUp]);
+  }, [updateGameStateFields]);
 
   useEffect(() => {
     if (!isHost || phase !== 'playing') {
