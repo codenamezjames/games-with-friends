@@ -11,6 +11,7 @@ import { useRoomStore } from '@/stores/useRoomStore';
 import { useStatsStore } from '@/stores/useStatsStore';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useHaptics } from '@/hooks/useHaptics';
+import { useAchievementChecker } from '@/hooks/useAchievementChecker';
 import { generateGrid, getWordPoints } from '@/games/wordtrace/utils';
 import { getGamePaths } from '@/games/registry';
 import { DICTIONARY } from '@/lib/dictionary';
@@ -58,6 +59,7 @@ export function SoloGamePage() {
   } = useGameStore();
   const { setFeedback, reset: resetLocalGame } = useLocalGameStore();
   const { recordGame, bestScore } = useStatsStore();
+  const { checkAchievements } = useAchievementChecker();
 
   const initializedRef = useRef(false);
   const statsRecordedRef = useRef(false);
@@ -273,6 +275,15 @@ export function SoloGamePage() {
         setIsNewBest(true);
       }
 
+      // Check achievements before recording (so achievement checker sees pre-game stats)
+      checkAchievements({
+        score: finalScore,
+        wordCount: wordCounts[playerId] || 0,
+        longestWord,
+        isMultiplayer: false,
+        won: null,
+      });
+
       recordGame({
         score: finalScore,
         wordCount: wordCounts[playerId] || 0,
@@ -283,7 +294,7 @@ export function SoloGamePage() {
         won: null,
       });
     }
-  }, [phase, foundWords, wordCounts, selectedGridSize, selectedDuration, recordGame, bestScore]);
+  }, [phase, foundWords, wordCounts, selectedGridSize, selectedDuration, recordGame, bestScore, checkAchievements]);
 
   // Format timer (clamp to 0 to prevent negative display)
   const displayTime = Math.max(0, timeRemaining);

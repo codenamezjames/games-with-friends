@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { useStatsStore, type GameRecord } from '@/stores/useStatsStore';
+import { useAchievementsStore, ACHIEVEMENTS } from '@/stores/useAchievementsStore';
 
 interface StatsModalProps {
   onClose: () => void;
 }
 
-type GameTab = 'wordtrace';
+type GameTab = 'wordtrace' | 'achievements';
 
 const GAME_TABS: { id: GameTab; name: string; icon: string }[] = [
   { id: 'wordtrace', name: 'Word Trace', icon: 'W' },
-  // Future games will be added here
-  // { id: 'trivia', name: 'Trivia', icon: '?' },
+  { id: 'achievements', name: 'Achievements', icon: '🏆' },
 ];
 
 function formatDate(isoDate: string): string {
@@ -81,6 +81,7 @@ export function StatsModal({ onClose }: StatsModalProps) {
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto p-6 pt-4">
           {activeTab === 'wordtrace' && <WordTraceStats />}
+          {activeTab === 'achievements' && <AchievementsTab />}
         </div>
 
         {/* Footer */}
@@ -237,6 +238,88 @@ function GameRecordItem({ game }: { game: GameRecord }) {
       </div>
       <div className="text-xs text-text-muted text-right shrink-0 ml-2">
         {formatDate(game.date)}
+      </div>
+    </div>
+  );
+}
+
+function AchievementsTab() {
+  const { unlockedAchievements, getUnlockedCount } = useAchievementsStore();
+  const unlockedCount = getUnlockedCount();
+  const totalCount = ACHIEVEMENTS.length;
+
+  // Group achievements by difficulty
+  const easyAchievements = ACHIEVEMENTS.filter((a) => a.difficulty === 'easy');
+  const mediumAchievements = ACHIEVEMENTS.filter((a) => a.difficulty === 'medium');
+  const hardAchievements = ACHIEVEMENTS.filter((a) => a.difficulty === 'hard');
+
+  return (
+    <div className="space-y-6">
+      {/* Progress */}
+      <div className="text-center">
+        <div className="text-4xl font-bold text-primary mb-1">
+          {unlockedCount} / {totalCount}
+        </div>
+        <p className="text-text-muted text-sm">Achievements Unlocked</p>
+        <div className="mt-3 h-2 bg-bg-cell rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary transition-all duration-500"
+            style={{ width: `${(unlockedCount / totalCount) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Achievement Groups */}
+      <AchievementGroup title="Easy" achievements={easyAchievements} unlockedAchievements={unlockedAchievements} />
+      <AchievementGroup title="Medium" achievements={mediumAchievements} unlockedAchievements={unlockedAchievements} />
+      <AchievementGroup title="Hard" achievements={hardAchievements} unlockedAchievements={unlockedAchievements} />
+    </div>
+  );
+}
+
+function AchievementGroup({
+  title,
+  achievements,
+  unlockedAchievements,
+}: {
+  title: string;
+  achievements: typeof ACHIEVEMENTS;
+  unlockedAchievements: Record<string, number>;
+}) {
+  const unlockedInGroup = achievements.filter((a) => unlockedAchievements[a.id]).length;
+
+  return (
+    <div>
+      <h3 className="text-sm font-medium text-text-muted mb-3 uppercase tracking-wide flex items-center justify-between">
+        <span>{title}</span>
+        <span className="text-xs">
+          {unlockedInGroup}/{achievements.length}
+        </span>
+      </h3>
+      <div className="grid grid-cols-2 gap-2">
+        {achievements.map((achievement) => {
+          const isUnlocked = !!unlockedAchievements[achievement.id];
+          return (
+            <div
+              key={achievement.id}
+              className={`rounded-lg p-3 transition-all ${
+                isUnlocked
+                  ? 'bg-bg-cell'
+                  : 'bg-bg-cell/30 opacity-50'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-xl ${isUnlocked ? '' : 'grayscale'}`}>
+                  {achievement.emoji}
+                </span>
+                <span className={`text-sm font-medium ${isUnlocked ? 'text-text-primary' : 'text-text-muted'}`}>
+                  {achievement.name}
+                </span>
+              </div>
+              <p className="text-xs text-text-muted">{achievement.description}</p>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

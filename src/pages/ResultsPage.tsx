@@ -13,6 +13,7 @@ import { useStatsStore } from '@/stores/useStatsStore';
 import { useRoom } from '@/hooks/useRoom';
 import { useGameListeners } from '@/hooks/useGameListeners';
 import { useRoomListeners } from '@/hooks/useRoomListeners';
+import { useAchievementChecker } from '@/hooks/useAchievementChecker';
 import { getGamePaths } from '@/games/registry';
 
 interface FloatingPoint {
@@ -30,6 +31,7 @@ export function ResultsPage() {
   const { players, playerId: localPlayerId, isHost, isSpectator, roomCode, gameSettings } = useRoomStore();
   const { setReadyForRematch, clearRematchReady, startGame, updateGameState, leaveRoom, updateResultsSpeed } = useRoom();
   const { recordGame } = useStatsStore();
+  const { checkAchievements } = useAchievementChecker();
 
   // Enable game state listeners for guests to receive rematch navigation
   useGameListeners();
@@ -119,6 +121,15 @@ export function ResultsPage() {
       // Determine win/loss: won if winner, lost if not winner and not a tie
       const won = results.isTie ? false : results.winner === localPlayerId;
 
+      // Check achievements before recording (so achievement checker sees pre-game stats)
+      checkAchievements({
+        score: myScore,
+        wordCount: myWords.length,
+        longestWord: myLongestWord,
+        isMultiplayer: true,
+        won,
+      });
+
       recordGame({
         score: myScore,
         wordCount: myWords.length,
@@ -129,7 +140,7 @@ export function ResultsPage() {
         won,
       });
     }
-  }, [animPhase, roomCode, localPlayerId, results, isSpectator, foundWords, gridSize, gameSettings.duration, recordGame]);
+  }, [animPhase, roomCode, localPlayerId, results, isSpectator, foundWords, gridSize, gameSettings.duration, recordGame, checkAchievements]);
 
   // Initialize scores to 0 (only once to prevent resetting during ready check)
   useEffect(() => {
