@@ -64,8 +64,8 @@ function findClosestAdjacentCell(
         const dy = relY - cellCenter.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        // Selection threshold - select when within 60% of the cell size from center
-        const threshold = cellSize * 0.6;
+        // Selection threshold - must be within 35% of cell size from center
+        const threshold = cellSize * 0.35;
 
         if (distance < threshold && distance < closestDistance) {
           closestDistance = distance;
@@ -161,7 +161,7 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
         const dy = relY - secondLastCenter.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < cellSize * 0.5) {
+        if (distance < cellSize * 0.35) {
           if (lastSelectedRef.current !== secondLastIndex) {
             removeLastFromPath();
             lastSelectedRef.current = secondLastIndex;
