@@ -7,7 +7,7 @@ import { useHaptics } from '@/hooks/useHaptics';
 import { getWordFromPath } from '@/games/wordtrace/utils';
 
 // Selection tuning constants
-const INNER_HITBOX_RATIO = 0.65; // Only select when pointer is within inner 65% of cell
+const INNER_HITBOX_RATIO = 0.75; // Only select when pointer is within inner 75% of cell
 const DWELL_TIME_MS = 40; // Must hover for 40ms before selecting
 
 interface CellAtPoint {
