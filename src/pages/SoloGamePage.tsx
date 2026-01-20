@@ -8,6 +8,7 @@ import { Button } from '@/components/common/Button';
 import { useGameStore } from '@/stores/useGameStore';
 import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useRoomStore } from '@/stores/useRoomStore';
+import { useStatsStore } from '@/stores/useStatsStore';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useHaptics } from '@/hooks/useHaptics';
 import { generateGrid, getWordPoints } from '@/games/wordtrace/utils';
@@ -56,8 +57,10 @@ export function SoloGamePage() {
     resetGame,
   } = useGameStore();
   const { setFeedback, reset: resetLocalGame } = useLocalGameStore();
+  const { recordGame } = useStatsStore();
 
   const initializedRef = useRef(false);
+  const statsRecordedRef = useRef(false);
 
   const playerId = 'solo-player';
 
@@ -196,9 +199,10 @@ export function SoloGamePage() {
       timerRef.current = null;
     }
 
-    // Reset game state
+    // Reset game state and stats tracking
     resetGame();
     resetLocalGame();
+    statsRecordedRef.current = false;
 
     if (withSetup) {
       setIsSetup(true);
@@ -237,6 +241,27 @@ export function SoloGamePage() {
       }
     };
   }, []);
+
+  // Record stats when game finishes
+  useEffect(() => {
+    if (phase === 'finished' && !statsRecordedRef.current) {
+      statsRecordedRef.current = true;
+      const words = foundWords[playerId] || [];
+      const longestWord = words.reduce(
+        (longest, word) => (word.length > longest.length ? word : longest),
+        ''
+      );
+      recordGame({
+        score: scores[playerId] || 0,
+        wordCount: wordCounts[playerId] || 0,
+        longestWord,
+        gridSize: selectedGridSize,
+        duration: selectedDuration,
+        isMultiplayer: false,
+        won: null,
+      });
+    }
+  }, [phase, foundWords, scores, wordCounts, selectedGridSize, selectedDuration, recordGame]);
 
   // Format timer (clamp to 0 to prevent negative display)
   const displayTime = Math.max(0, timeRemaining);

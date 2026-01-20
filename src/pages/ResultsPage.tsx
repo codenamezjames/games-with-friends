@@ -9,6 +9,7 @@ import { ResultsGrid } from '@/games/wordtrace/components/ResultsGrid';
 import { prepareWordRevealSequence, getWordPoints, findWordPath, generateGrid } from '@/games/wordtrace/utils';
 import { useGameStore } from '@/stores/useGameStore';
 import { useRoomStore } from '@/stores/useRoomStore';
+import { useStatsStore } from '@/stores/useStatsStore';
 import { useRoom } from '@/hooks/useRoom';
 import { useGameListeners } from '@/hooks/useGameListeners';
 import { useRoomListeners } from '@/hooks/useRoomListeners';
@@ -28,6 +29,7 @@ export function ResultsPage() {
   const { results, foundWords, grid, gridSize, resetGame, setGrid, setGridSize, setDuration, setPhase: setGamePhase, setStartTime, setTimeRemaining, phase: gamePhase } = useGameStore();
   const { players, playerId: localPlayerId, isHost, isSpectator, roomCode, gameSettings } = useRoomStore();
   const { setReadyForRematch, clearRematchReady, startGame, updateGameState, leaveRoom, updateResultsSpeed } = useRoom();
+  const { recordGame } = useStatsStore();
 
   // Enable game state listeners for guests to receive rematch navigation
   useGameListeners();
@@ -47,6 +49,7 @@ export function ResultsPage() {
   const speedRef = useRef<Speed>(speed);
   const isLeavingRef = useRef(false);
   const hasInitializedScoresRef = useRef(false);
+  const statsRecordedRef = useRef(false);
 
   // Keep speedRef in sync with speed state
   useEffect(() => {
@@ -93,6 +96,40 @@ export function ResultsPage() {
       word.length > longest.length ? word : longest
     );
   }, [foundWords]);
+
+  // Record stats when entering winner phase (multiplayer only)
+  useEffect(() => {
+    if (
+      animPhase === 'winner' &&
+      roomCode &&
+      localPlayerId &&
+      results &&
+      !isSpectator &&
+      !statsRecordedRef.current
+    ) {
+      statsRecordedRef.current = true;
+      const myWords = foundWords[localPlayerId] || [];
+      const myResult = results.rankings.find((r) => r.playerId === localPlayerId);
+      const myScore = myResult?.score || 0;
+      const myLongestWord = myWords.reduce(
+        (longest, word) => (word.length > longest.length ? word : longest),
+        ''
+      );
+
+      // Determine win/loss: won if winner, lost if not winner and not a tie
+      const won = results.isTie ? false : results.winner === localPlayerId;
+
+      recordGame({
+        score: myScore,
+        wordCount: myWords.length,
+        longestWord: myLongestWord,
+        gridSize,
+        duration: gameSettings.duration,
+        isMultiplayer: true,
+        won,
+      });
+    }
+  }, [animPhase, roomCode, localPlayerId, results, isSpectator, foundWords, gridSize, gameSettings.duration, recordGame]);
 
   // Initialize scores to 0 (only once to prevent resetting during ready check)
   useEffect(() => {
