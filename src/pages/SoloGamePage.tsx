@@ -149,7 +149,6 @@ export function SoloGamePage() {
 
       // Check if already found
       if (myWords.includes(word)) {
-        playSound('wordInvalid');
         vibrate('wordInvalid');
         setFeedback({ message: 'Already found!', type: 'error' });
         return;
@@ -157,7 +156,6 @@ export function SoloGamePage() {
 
       // Check minimum length
       if (word.length < 3) {
-        playSound('wordInvalid');
         vibrate('wordInvalid');
         setFeedback({ message: 'Too short', type: 'error' });
         return;
@@ -165,7 +163,6 @@ export function SoloGamePage() {
 
       // Check dictionary
       if (!DICTIONARY.has(word)) {
-        playSound('wordInvalid');
         vibrate('wordInvalid');
         setFeedback({ message: 'Not a word', type: 'error' });
         return;

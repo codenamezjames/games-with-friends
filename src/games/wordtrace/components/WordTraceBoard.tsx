@@ -279,7 +279,6 @@ export function WordTraceBoard() {
           // Sync to Firebase
           await updateGameState(gameRef.current.getSerializableState());
         } else {
-          playSound('wordInvalid');
           vibrate('wordInvalid');
           const messages: Record<string, string> = {
             ALREADY_FOUND: 'Already found!',
@@ -299,19 +298,16 @@ export function WordTraceBoard() {
         // First do local validation for immediate feedback
         const myWords = foundWords[playerId] || [];
         if (myWords.includes(word)) {
-          playSound('wordInvalid');
           vibrate('wordInvalid');
           setFeedback({ message: 'Already found!', type: 'error' });
           return;
         }
         if (word.length < 3) {
-          playSound('wordInvalid');
           vibrate('wordInvalid');
           setFeedback({ message: 'Too short', type: 'error' });
           return;
         }
         if (!DICTIONARY.has(word)) {
-          playSound('wordInvalid');
           vibrate('wordInvalid');
           setFeedback({ message: 'Not a word', type: 'error' });
           return;
