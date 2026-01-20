@@ -11,10 +11,10 @@ function canVibrate(): boolean {
 // Array format: [vibrate, pause, vibrate, pause, ...]
 const HAPTIC_PATTERNS: Record<HapticType, number | number[]> = {
   tileSelect: 3,               // Very light tap
-  wordValid: [30, 50, 30],     // Double pulse (success)
-  wordInvalid: [100, 30, 100], // Two longer buzzes (error)
-  gameStart: [50, 100, 50, 100, 100], // Ascending pattern
-  gameEnd: [200],              // Single long buzz
+  wordValid: [8, 30, 8],       // Light double pulse (success)
+  wordInvalid: [15, 20, 15],   // Light double buzz (error)
+  gameStart: [10, 50, 10],     // Light start pattern
+  gameEnd: [20],               // Light single buzz
 };
 
 export function useHaptics() {
