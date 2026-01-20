@@ -57,7 +57,7 @@ export function SoloGamePage() {
     resetGame,
   } = useGameStore();
   const { setFeedback, reset: resetLocalGame } = useLocalGameStore();
-  const { recordGame } = useStatsStore();
+  const { recordGame, bestScore } = useStatsStore();
 
   const initializedRef = useRef(false);
   const statsRecordedRef = useRef(false);
@@ -203,6 +203,7 @@ export function SoloGamePage() {
     resetGame();
     resetLocalGame();
     statsRecordedRef.current = false;
+    setIsNewBest(false);
 
     if (withSetup) {
       setIsSetup(true);
@@ -265,8 +266,15 @@ export function SoloGamePage() {
         (longest, word) => (word.length > longest.length ? word : longest),
         ''
       );
+      const finalScore = calculateScore(words);
+
+      // Check if this is a new personal best before recording
+      if (finalScore > bestScore) {
+        setIsNewBest(true);
+      }
+
       recordGame({
-        score: calculateScore(words),
+        score: finalScore,
         wordCount: wordCounts[playerId] || 0,
         longestWord,
         gridSize: selectedGridSize,
@@ -275,7 +283,7 @@ export function SoloGamePage() {
         won: null,
       });
     }
-  }, [phase, foundWords, wordCounts, selectedGridSize, selectedDuration, recordGame]);
+  }, [phase, foundWords, wordCounts, selectedGridSize, selectedDuration, recordGame, bestScore]);
 
   // Format timer (clamp to 0 to prevent negative display)
   const displayTime = Math.max(0, timeRemaining);
@@ -291,6 +299,7 @@ export function SoloGamePage() {
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle');
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showVignette, setShowVignette] = useState(false);
+  const [isNewBest, setIsNewBest] = useState(false);
 
   const handleShare = useCallback(async () => {
     const shareText = [
@@ -456,13 +465,22 @@ export function SoloGamePage() {
             <h2 className="text-4xl font-bold text-center mb-2 text-primary">
               Game Over!
             </h2>
+            {isNewBest && (
+              <div className="text-center mb-4">
+                <span className="inline-block bg-gradient-to-r from-accent to-yellow-400 text-bg-main px-4 py-1 rounded-full text-sm font-bold animate-pulse">
+                  New Personal Best!
+                </span>
+              </div>
+            )}
             <p className="text-center text-text-muted mb-6">
-              Great practice session!
+              {isNewBest ? 'You beat your previous record!' : 'Great practice session!'}
             </p>
 
             {/* Final Score */}
             <div className="text-center mb-6">
-              <div className="text-6xl font-bold text-accent mb-2">{myFinalScore}</div>
+              <div className={`text-6xl font-bold text-accent mb-2 ${isNewBest ? 'glow-text' : ''}`}>
+                {myFinalScore}
+              </div>
               <div className="text-text-secondary">
                 {myWordCount} {myWordCount === 1 ? 'word' : 'words'} found
               </div>
