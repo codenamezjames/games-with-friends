@@ -236,6 +236,17 @@ export function ReadyCheckPanel({
         </div>
       </div>
 
+      {/* Play Again button for non-spectators who aren't ready yet */}
+      {!isSpectator && !isLocalReady && (
+        <Button
+          variant="primary"
+          onClick={handleToggleReady}
+          className="w-full mb-4"
+        >
+          Play Again
+        </Button>
+      )}
+
       {/* Status message */}
       <div className="text-center mb-4">
         {autoStartCountdown !== null ? (
