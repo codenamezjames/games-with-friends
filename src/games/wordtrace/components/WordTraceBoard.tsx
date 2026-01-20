@@ -40,7 +40,6 @@ export function WordTraceBoard() {
     foundWords,
     gameType,
     setPhase,
-    setTimeRemaining,
     setResults,
     updatePlayerScore,
     addFoundWord,
@@ -120,6 +119,11 @@ export function WordTraceBoard() {
   // Handle countdown complete
   const handleCountdownComplete = useCallback(() => {
     setShowCountdown(false);
+
+    // Read from store inside callback to avoid stale closures
+    const { setPhase } = useGameStore.getState();
+    const { isHost } = useRoomStore.getState();
+
     setPhase('playing');
     playSound('gameStart');
     vibrate('gameStart');
@@ -134,7 +138,8 @@ export function WordTraceBoard() {
 
       // Start timer
       timerRef.current = window.setInterval(async () => {
-        const newTime = useGameStore.getState().timeRemaining - 1;
+        const { timeRemaining, setTimeRemaining } = useGameStore.getState();
+        const newTime = timeRemaining - 1;
         setTimeRemaining(newTime);
 
         if (gameRef.current) {
@@ -152,7 +157,7 @@ export function WordTraceBoard() {
         }
       }, 1000);
     }
-  }, [isHost, setPhase, setTimeRemaining, updateGameStateFields, playSound, vibrate, handleGameEnd]);
+  }, [updateGameStateFields, playSound, vibrate, handleGameEnd]);
 
   // Resume timer for host rejoining mid-game or taking over from disconnected host
   // This runs when isHost becomes true during an active game
@@ -163,24 +168,21 @@ export function WordTraceBoard() {
       return;
     }
 
-    // Clear any existing timer first to prevent duplicates
-    if (timerRef.current) {
-      console.log('[WordTraceBoard] Clearing existing timer before resume check');
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
     // Only resume if:
     // 1. We're the host
     // 2. Phase is 'playing' (not countdown)
     // 3. There's time left
     // 4. We're not showing countdown (meaning we didn't just come from countdown)
+    // 5. No timer is already running
     const currentTimeRemaining = useGameStore.getState().timeRemaining;
-    if (isHost && phase === 'playing' && currentTimeRemaining > 0 && !showCountdown) {
+    const currentIsHost = useRoomStore.getState().isHost;
+
+    if (currentIsHost && phase === 'playing' && currentTimeRemaining > 0 && !showCountdown && !timerRef.current) {
       console.log('[WordTraceBoard] Starting timer for host, timeRemaining:', currentTimeRemaining);
 
       timerRef.current = window.setInterval(async () => {
-        const newTime = useGameStore.getState().timeRemaining - 1;
+        const { timeRemaining, setTimeRemaining } = useGameStore.getState();
+        const newTime = timeRemaining - 1;
 
         // Safety check: don't go below 0
         if (newTime < 0) {
@@ -210,10 +212,13 @@ export function WordTraceBoard() {
       }, 1000);
     }
 
-    // Cleanup: clear timer when effect re-runs or component unmounts
+    // Cleanup: only clear timer if we're unmounting or phase is no longer 'playing'
+    // Don't clear if countdown just completed (the timer was started by handleCountdownComplete)
     return () => {
-      if (timerRef.current) {
-        console.log('[WordTraceBoard] Cleanup: clearing timer');
+      // Check current phase - only clear if we're actually leaving playing state
+      const { phase: currentPhase } = useGameStore.getState();
+      if (timerRef.current && currentPhase !== 'playing') {
+        console.log('[WordTraceBoard] Cleanup: clearing timer (phase:', currentPhase, ')');
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
