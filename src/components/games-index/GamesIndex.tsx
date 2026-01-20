@@ -83,7 +83,7 @@ export function GamesIndex() {
         </button>
       </div>
 
-      <header className="text-center mb-12">
+      <header className="text-center mb-12 mt-8">
         <h1 className="text-5xl font-bold bg-gradient-to-br from-primary-light to-accent bg-clip-text text-transparent mb-2.5">
           Games with Friends
         </h1>
