@@ -10,7 +10,7 @@ function canVibrate(): boolean {
 // Vibration patterns (in milliseconds)
 // Array format: [vibrate, pause, vibrate, pause, ...]
 const HAPTIC_PATTERNS: Record<HapticType, number | number[]> = {
-  tileSelect: 10,              // Quick tap
+  tileSelect: 3,               // Very light tap
   wordValid: [30, 50, 30],     // Double pulse (success)
   wordInvalid: [100, 30, 100], // Two longer buzzes (error)
   gameStart: [50, 100, 50, 100, 100], // Ascending pattern
