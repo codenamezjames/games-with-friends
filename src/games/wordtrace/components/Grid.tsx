@@ -4,7 +4,7 @@ import { useLocalGameStore } from '@/stores/useLocalGameStore';
 import { useGameStore } from '@/stores/useGameStore';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useHaptics } from '@/hooks/useHaptics';
-import { isAdjacent, getWordFromPath } from '@/games/wordtrace/utils';
+import { getWordFromPath } from '@/games/wordtrace/utils';
 
 interface GridProps {
   onWordSubmit: (word: string, path: number[]) => void;
@@ -64,8 +64,8 @@ function findClosestAdjacentCell(
         const dy = relY - cellCenter.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        // Selection threshold - must be within 35% of cell size from center
-        const threshold = cellSize * 0.35;
+        // Selection threshold - must be within 40% of cell size from center (60% of the way to center)
+        const threshold = cellSize * 0.4;
 
         if (distance < threshold && distance < closestDistance) {
           closestDistance = distance;
@@ -116,33 +116,6 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
   // Track last selected cell to avoid duplicate processing
   const lastSelectedRef = useRef<number | null>(null);
 
-  const handleCellEnter = useCallback(
-    (index: number) => {
-      if (!isTracing || isDisabled) return;
-
-      // Backtracking - if we enter a cell that's second-to-last in path, remove last
-      if (currentPath.length >= 2 && currentPath[currentPath.length - 2] === index) {
-        removeLastFromPath();
-        lastSelectedRef.current = index;
-        return;
-      }
-
-      // Don't add if already in path
-      if (currentPath.includes(index)) return;
-
-      // Check adjacency with last cell
-      const lastIndex = currentPath[currentPath.length - 1];
-
-      if (isAdjacent(lastIndex, index, gridSize)) {
-        play('tileSelect');
-        vibrate('tileSelect');
-        addToPath(index);
-        lastSelectedRef.current = index;
-      }
-    },
-    [isTracing, isDisabled, currentPath, removeLastFromPath, addToPath, play, vibrate, gridSize]
-  );
-
   // Handle pointer move for touch dragging - uses proximity-based selection
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
@@ -161,7 +134,7 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
         const dy = relY - secondLastCenter.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < cellSize * 0.35) {
+        if (distance < cellSize * 0.4) {
           if (lastSelectedRef.current !== secondLastIndex) {
             removeLastFromPath();
             lastSelectedRef.current = secondLastIndex;
@@ -294,7 +267,6 @@ export function Grid({ onWordSubmit, disabled = false, isSpectator = false }: Gr
               selectionOrder={currentPath.indexOf(index)}
               isDisabled={isDisabled}
               onPointerDown={handlePointerDown}
-              onPointerEnter={handleCellEnter}
             />
           ))}
         </div>

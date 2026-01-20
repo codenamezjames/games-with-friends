@@ -5,7 +5,6 @@ interface CellProps {
   selectionOrder?: number;
   isDisabled: boolean;
   onPointerDown: (index: number) => void;
-  onPointerEnter: (index: number) => void;
 }
 
 export function Cell({
@@ -15,7 +14,6 @@ export function Cell({
   selectionOrder,
   isDisabled,
   onPointerDown,
-  onPointerEnter,
 }: CellProps) {
   const displayLetter = letter === 'QU' ? 'Qu' : letter;
   const isQu = letter === 'QU';
@@ -35,7 +33,6 @@ export function Cell({
         ${isQu ? 'text-xl' : ''}
       `}
       onPointerDown={() => !isDisabled && onPointerDown(index)}
-      onPointerEnter={() => !isDisabled && onPointerEnter(index)}
     >
       {displayLetter}
       {isSelected && selectionOrder !== undefined && (
