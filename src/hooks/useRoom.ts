@@ -12,6 +12,7 @@ import {
 import { signInAnonymously } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
 import { useRoomStore } from '@/stores/useRoomStore';
+import { useReactionsStore } from '@/stores/useReactionsStore';
 
 // Characters that look distinct (avoiding O, 0, I, 1, L)
 const ROOM_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -229,6 +230,7 @@ export function useRoom() {
     }
 
     resetRoom();
+    useReactionsStore.getState().clearReactions();
   }, [resetRoom]);
 
   const rejoinRoom = useCallback(async (): Promise<boolean> => {

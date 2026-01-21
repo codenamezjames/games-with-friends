@@ -12,6 +12,7 @@ import { useRoomStore } from '@/stores/useRoomStore';
 import { useGameStore } from '@/stores/useGameStore';
 import { generateGrid } from '@/games/wordtrace/utils';
 import { getGamePaths } from '@/games/registry';
+import { EmojiPicker } from '@/components/reactions';
 
 const JOIN_TIMEOUT_MS = 10000; // 10 seconds to join/rejoin
 
@@ -409,6 +410,11 @@ export function WaitingRoom() {
         <Button variant="link" onClick={handleLeave} className="w-full mt-4">
           Leave Room
         </Button>
+
+        {/* Emoji reactions */}
+        <div className="flex justify-center mt-4">
+          <EmojiPicker />
+        </div>
       </div>
     </div>
   );

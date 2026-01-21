@@ -6,6 +6,7 @@ import { getAvailableGames, getGameRoutes, getGamePaths } from '@/games/registry
 import { ToastContainer } from '@/components/common/Toast';
 import { ConnectionStatus } from '@/components/common/ConnectionStatus';
 import { AchievementNotification } from '@/components/common/AchievementNotification';
+import { ReactionsOverlay } from '@/components/reactions';
 
 // Import game modules to register them (side effect)
 import '@/games/wordtrace';
@@ -102,6 +103,7 @@ function App() {
       <TestResultsNavigator />
       <ToastContainer />
       <AchievementNotification />
+      <ReactionsOverlay />
     </BrowserRouter>
   );
 }

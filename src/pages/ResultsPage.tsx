@@ -15,6 +15,7 @@ import { useGameListeners } from '@/hooks/useGameListeners';
 import { useRoomListeners } from '@/hooks/useRoomListeners';
 import { useAchievementChecker } from '@/hooks/useAchievementChecker';
 import { getGamePaths } from '@/games/registry';
+import { EmojiPicker } from '@/components/reactions';
 
 interface FloatingPoint {
   id: number;
@@ -435,6 +436,13 @@ export function ResultsPage() {
           )}
         </main>
 
+        {/* Emoji reactions */}
+        {roomCode && (
+          <div className="fixed bottom-4 right-4 z-40">
+            <EmojiPicker />
+          </div>
+        )}
+
         {/* Bottom score bar */}
         <footer className="bg-bg-card/80 backdrop-blur p-4">
           {/* Progress */}
@@ -567,6 +575,13 @@ export function ResultsPage() {
         <Button variant="link" onClick={handleBackToLobby} className="mt-4">
           Leave Room
         </Button>
+      )}
+
+      {/* Emoji reactions */}
+      {roomCode && (
+        <div className="fixed bottom-4 right-4 z-40">
+          <EmojiPicker />
+        </div>
       )}
     </div>
   );

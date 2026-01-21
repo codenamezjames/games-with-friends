@@ -51,3 +51,11 @@ export interface Room {
   metadata: RoomMetadata;
   players: Record<string, Player>;
 }
+
+export interface Reaction {
+  id: string;
+  playerId: string;
+  playerName: string;
+  emoji: string;
+  timestamp: number;
+}

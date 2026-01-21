@@ -19,6 +19,7 @@ import { useHaptics } from '@/hooks/useHaptics';
 import { getGamePaths } from '@/games/registry';
 import { WordTraceGame } from '@/games/wordtrace/WordTraceGame';
 import { DICTIONARY } from '@/lib/dictionary';
+import { EmojiPicker } from '@/components/reactions';
 
 export function WordTraceBoard() {
   const navigate = useNavigate();
@@ -453,6 +454,10 @@ export function WordTraceBoard() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
+        {/* Emoji reactions */}
+        <div className="absolute right-0 top-1">
+          <EmojiPicker />
+        </div>
         <h1 className="text-2xl font-bold text-primary mb-1">Word Trace</h1>
         <div
           className={`text-4xl font-mono font-bold ${
